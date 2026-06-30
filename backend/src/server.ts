@@ -38,6 +38,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/bookings', bookingRoutes);
+app.use('/api/vehicles', vehicleRoutes);
 
 app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok', service: 'SpeedX Garage API' });
