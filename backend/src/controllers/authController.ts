@@ -1,4 +1,5 @@
-import { NextFunction, Request, Response } from 'express';
+import { NextFunction, Response } from 'express';
+import { AuthenticatedRequest } from '../middleware/authMiddleware.js';
 import { AuthService } from '../services/authService.js';
 import { sendError, sendSuccess } from '../utils/response.js';
 import { adminLoginSchema, customerLoginSchema, customerRegisterSchema, profileUpdateSchema } from '../validators/authValidators.js';
@@ -6,7 +7,7 @@ import { adminLoginSchema, customerLoginSchema, customerRegisterSchema, profileU
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  adminLogin = async (req: Request, res: Response, next: NextFunction) => {
+  adminLogin = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const parsed = adminLoginSchema.parse(req.body);
       const result = await this.authService.adminLogin(parsed.email, parsed.password);
@@ -16,7 +17,7 @@ export class AuthController {
     }
   };
 
-  customerRegister = async (req: Request, res: Response, next: NextFunction) => {
+  customerRegister = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const parsed = customerRegisterSchema.parse(req.body);
       const result = await this.authService.customerRegister(parsed);
@@ -26,7 +27,7 @@ export class AuthController {
     }
   };
 
-  customerLogin = async (req: Request, res: Response, next: NextFunction) => {
+  customerLogin = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const parsed = customerLoginSchema.parse(req.body);
       const result = await this.authService.customerLogin(parsed.email, parsed.password);
@@ -36,7 +37,7 @@ export class AuthController {
     }
   };
 
-  refresh = async (req: Request, res: Response, next: NextFunction) => {
+  refresh = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const { refreshToken } = req.body as { refreshToken?: string };
       if (!refreshToken) {
@@ -51,7 +52,7 @@ export class AuthController {
     }
   };
 
-  getProfile = async (req: Request, res: Response, next: NextFunction) => {
+  getProfile = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const user = req.user;
       const profile = await this.authService.getProfile(user?.sub ?? '', user?.role ?? '');
@@ -61,7 +62,7 @@ export class AuthController {
     }
   };
 
-  updateProfile = async (req: Request, res: Response, next: NextFunction) => {
+  updateProfile = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const parsed = profileUpdateSchema.parse(req.body);
       const user = req.user;

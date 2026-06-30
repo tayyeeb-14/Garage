@@ -56,7 +56,7 @@ export class AuthService {
       throw new Error('Invalid credentials');
     }
 
-    const isPasswordValid = await bcrypt.compare(password, customer.passwordHash);
+    const isPasswordValid = await bcrypt.compare(password, (customer as { passwordHash?: string }).passwordHash || '');
     if (!isPasswordValid) {
       throw new Error('Invalid credentials');
     }
