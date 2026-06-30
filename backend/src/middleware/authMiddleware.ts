@@ -34,3 +34,5 @@ export const protect = (roles: string[] = []) => {
     }
   };
 };
+
+export const authenticateAdmin = protect(['admin']);

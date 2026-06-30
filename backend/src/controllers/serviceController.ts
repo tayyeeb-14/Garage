@@ -24,7 +24,8 @@ export class ServiceController {
 
   getServiceById = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const service = await this.serviceService.getServiceById(req.params.id);
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const service = await this.serviceService.getServiceById(id);
       if (!service) {
         return res.status(404).json({ success: false, message: 'Service not found' });
       }
@@ -36,7 +37,8 @@ export class ServiceController {
 
   updateService = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const service = await this.serviceService.updateService(req.params.id, req.body);
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const service = await this.serviceService.updateService(id, req.body);
       if (!service) {
         return res.status(404).json({ success: false, message: 'Service not found' });
       }
@@ -48,7 +50,8 @@ export class ServiceController {
 
   deleteService = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const service = await this.serviceService.deleteService(req.params.id);
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const service = await this.serviceService.deleteService(id);
       if (!service) {
         return res.status(404).json({ success: false, message: 'Service not found' });
       }

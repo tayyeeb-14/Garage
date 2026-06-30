@@ -11,6 +11,8 @@ import { authErrorHandler } from './middleware/authErrorHandler.js';
 import healthRoutes from './routes/healthRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import authRoutes from './routes/authRoutes.js';
+import serviceRoutes from './routes/serviceRoutes.js';
+import bookingRoutes from './routes/bookingRoutes.js';
 
 dotenv.config();
 
@@ -33,6 +35,8 @@ app.use(
 app.use('/api', healthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/services', serviceRoutes);
+app.use('/api/bookings', bookingRoutes);
 
 app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok', service: 'SpeedX Garage API' });

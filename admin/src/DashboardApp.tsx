@@ -1,22 +1,44 @@
+import { useState } from 'react';
 import { useDashboard } from './hooks/useDashboard';
 import LoadingState from './components/LoadingState';
 import ErrorState from './components/ErrorState';
 import EmptyState from './components/EmptyState';
 import StatCard from './components/StatCard';
 import DashboardChart from './components/DashboardChart';
+import ServicesPage from './pages/ServicesPage';
+import BookingsPage from './pages/BookingsPage';
 
 const DashboardApp = () => {
   const { stats, recentOrders, lowStock, topServices, isLoading, error } = useDashboard();
+  const [activeView, setActiveView] = useState<'dashboard' | 'services' | 'bookings'>('dashboard');
 
   if (isLoading) return <LoadingState />;
   if (error) return <ErrorState message={error} />;
 
+  if (activeView === 'services') {
+    return <ServicesPage />;
+  }
+
+  if (activeView === 'bookings') {
+    return <BookingsPage />;
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '1.5rem', fontFamily: 'Inter, sans-serif' }}>
       <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
-        <header style={{ marginBottom: '1.5rem' }}>
-          <h1 style={{ margin: 0, color: '#0f172a', fontSize: '2rem' }}>SpeedX Garage Admin Dashboard</h1>
-          <p style={{ margin: '0.4rem 0 0', color: '#64748b' }}>Operations overview and recent activity</p>
+        <header style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
+          <div>
+            <h1 style={{ margin: 0, color: '#0f172a', fontSize: '2rem' }}>SpeedX Garage Admin Dashboard</h1>
+            <p style={{ margin: '0.4rem 0 0', color: '#64748b' }}>Operations overview and recent activity</p>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button onClick={() => setActiveView('bookings')} style={{ padding: '0.8rem 1rem', borderRadius: '12px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>
+              Manage Bookings
+            </button>
+            <button onClick={() => setActiveView('services')} style={{ padding: '0.8rem 1rem', borderRadius: '12px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>
+              Manage Services
+            </button>
+          </div>
         </header>
 
         <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
