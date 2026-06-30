@@ -1,6 +1,8 @@
 import { BookingRepository } from '../repositories/bookingRepository.js';
+import { OrderRepository } from '../repositories/orderRepository.js';
 
 export class BookingService {
+  constructor(private readonly bookingRepository: BookingRepository) {}
   constructor(private readonly bookingRepository: BookingRepository) {}
 
   async createBooking(input: Record<string, unknown>) {
@@ -58,7 +60,11 @@ export class BookingService {
 
     const payload = { ...input } as Record<string, unknown>;
     if (payload.bookingDate) payload.bookingDate = new Date(payload.bookingDate as string);
-    return this.bookingRepository.update(id, payload);
+    const updated = await this.bookingRepository.update(id, payload);
+    if (updated && payload.status === 'confirmed') {
+      await this.createOrderFromBooking(updated);
+    }
+    return updated;
   }
 
   async deleteBooking(id: string) {
@@ -71,6 +77,29 @@ export class BookingService {
 
   async getStats() {
     return this.bookingRepository.getStats();
+  }
+
+  private async createOrderFromBooking(booking: any) {
+    const orderRepository = new OrderRepository();
+    const existing = await orderRepository.findById(booking._id.toString());
+    if (existing) {
+      return existing;
+    }
+
+    const services = Array.isArray(booking.services) ? booking.services.map((service: any) => service._id?.toString() ?? service.toString()) : [];
+    const totalAmount = services.reduce((sum: number, service: any) => sum + Number(service?.price ?? 0), 0);
+
+    return orderRepository.create({
+      booking: booking._id,
+      customer: booking.customer?._id ?? booking.customer,
+      vehicle: booking.vehicle?._id ?? booking.vehicle,
+      services,
+      totalAmount,
+      paymentMethod: 'cash',
+      paymentStatus: 'pending',
+      orderStatus: 'pending',
+      notes: booking.notes,
+    });
   }
 
   private generateBookingId() {

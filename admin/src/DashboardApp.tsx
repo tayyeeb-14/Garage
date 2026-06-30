@@ -7,10 +7,11 @@ import StatCard from './components/StatCard';
 import DashboardChart from './components/DashboardChart';
 import ServicesPage from './pages/ServicesPage';
 import BookingsPage from './pages/BookingsPage';
+import OrdersPage from './pages/OrdersPage';
 
 const DashboardApp = () => {
   const { stats, recentOrders, lowStock, topServices, isLoading, error } = useDashboard();
-  const [activeView, setActiveView] = useState<'dashboard' | 'services' | 'bookings'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'services' | 'bookings' | 'orders'>('dashboard');
 
   if (isLoading) return <LoadingState />;
   if (error) return <ErrorState message={error} />;
@@ -21,6 +22,10 @@ const DashboardApp = () => {
 
   if (activeView === 'bookings') {
     return <BookingsPage />;
+  }
+
+  if (activeView === 'orders') {
+    return <OrdersPage />;
   }
 
   return (
@@ -34,6 +39,9 @@ const DashboardApp = () => {
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             <button onClick={() => setActiveView('bookings')} style={{ padding: '0.8rem 1rem', borderRadius: '12px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>
               Manage Bookings
+            </button>
+            <button onClick={() => setActiveView('orders')} style={{ padding: '0.8rem 1rem', borderRadius: '12px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>
+              Manage Orders
             </button>
             <button onClick={() => setActiveView('services')} style={{ padding: '0.8rem 1rem', borderRadius: '12px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>
               Manage Services
