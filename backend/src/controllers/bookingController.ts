@@ -68,7 +68,7 @@ export class BookingController {
 
   getCustomerBookings = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const customerId = req.params.customerId;
+      const customerId = Array.isArray(req.params.customerId) ? req.params.customerId[0] : req.params.customerId;
       const bookings = await this.bookingService.getBookingsForCustomer(customerId);
       res.json({ success: true, data: bookings });
     } catch (error) {

@@ -13,6 +13,7 @@ import dashboardRoutes from './routes/dashboardRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import serviceRoutes from './routes/serviceRoutes.js';
 import bookingRoutes from './routes/bookingRoutes.js';
+import vehicleRoutes from './routes/vehicleRoutes.js';
 
 dotenv.config();
 

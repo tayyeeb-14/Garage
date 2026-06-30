@@ -1,10 +1,12 @@
 import { StatusBar } from 'expo-status-bar';
-import MobileServiceScreen from './src/services/ServiceScreen';
+import BookingScreen from './src/booking/BookingScreen';
+import BookingHistoryScreen from './src/booking/BookingHistoryScreen';
 
 export default function App() {
   return (
     <>
-      <MobileServiceScreen />
+      <BookingScreen />
+      <BookingHistoryScreen />
       <StatusBar style="auto" />
     </>
   );
