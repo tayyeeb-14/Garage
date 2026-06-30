@@ -1,0 +1,17 @@
+{
+  "name": "speedx-garage",
+  "private": true,
+  "version": "1.0.0",
+  "description": "SpeedX Garage monorepo for garage management system",
+  "workspaces": ["backend", "admin", "mobile"],
+  "scripts": {
+    "backend:dev": "npm --workspace backend run dev",
+    "backend:build": "npm --workspace backend run build",
+    "backend:start": "npm --workspace backend run start",
+    "lint": "npm --workspace backend run lint",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3"
+  }
+}
