@@ -1,4 +1,4 @@
-import { useAuth } from './hooks/useAuth';
+import { useAuth } from './context/AuthContext';
 import LoginPage from './pages/LoginPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import DashboardApp from './DashboardApp';
@@ -18,7 +18,7 @@ const App = () => {
           Logout
         </button>
       </div>
-      <ProtectedRoute>
+      <ProtectedRoute user={user} isLoading={isLoading}>
         <DashboardApp />
       </ProtectedRoute>
     </div>

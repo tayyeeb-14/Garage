@@ -1,10 +1,16 @@
 import { ReactNode } from 'react';
-import { useAuth } from '../hooks/useAuth';
 import LoadingState from './LoadingState';
+import { AuthUser } from '../types/auth';
 
-const ProtectedRoute = ({ children }: { children: ReactNode }) => {
-  const { user, isLoading } = useAuth();
-
+const ProtectedRoute = ({
+  children,
+  user,
+  isLoading,
+}: {
+  children: ReactNode;
+  user: AuthUser | null;
+  isLoading: boolean;
+}) => {
   if (isLoading) return <LoadingState />;
   if (!user) {
     window.location.href = '/';

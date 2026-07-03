@@ -86,8 +86,7 @@ export class AuthService {
       return this.authRepository.findCustomerById(userId);
     }
 
-    const admin = await this.authRepository.findAdminByEmail('');
-    return admin;
+    return this.authRepository.findAdminById(userId);
   }
 
   async updateProfile(userId: string, role: string, data: Record<string, unknown>) {

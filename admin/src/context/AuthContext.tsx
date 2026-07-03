@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { authService } from '../services/authService';
 import { AuthUser } from '../types/auth';
 
@@ -29,7 +29,18 @@ const clearStoredAuth = () => {
   sessionStorage.removeItem(STORAGE_KEYS.user);
 };
 
-export const useAuth = () => {
+interface AuthContextValue {
+  user: AuthUser | null;
+  token: string | null;
+  isLoading: boolean;
+  error: string | null;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<boolean>;
+  logout: () => void;
+}
+
+const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(() => getStoredToken());
   const [isLoading, setIsLoading] = useState(true);
@@ -113,5 +124,17 @@ export const useAuth = () => {
     setUser(null);
   };
 
-  return { user, token, isLoading, error, login, logout };
+  return (
+    <AuthContext.Provider value={{ user, token, isLoading, error, login, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider');
+  }
+  return context;
 };

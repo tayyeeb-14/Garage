@@ -10,6 +10,10 @@ export class AuthRepository {
     return Customer.findOne({ email }).lean();
   }
 
+  async findAdminById(id: string) {
+    return Admin.findById(id).select('-passwordHash').lean();
+  }
+
   async createAdmin(data: { name: string; email: string; passwordHash: string; role?: string }) {
     return Admin.create(data);
   }
