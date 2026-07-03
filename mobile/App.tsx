@@ -10,6 +10,6 @@ export default function App() {
       <BookingHistoryScreen />
       <OrderListScreen />
       <StatusBar style="auto" />
-    </></>
+    </>
   );
 }

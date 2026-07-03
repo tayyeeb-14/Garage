@@ -3,7 +3,6 @@ import { OrderRepository } from '../repositories/orderRepository.js';
 
 export class BookingService {
   constructor(private readonly bookingRepository: BookingRepository) {}
-  constructor(private readonly bookingRepository: BookingRepository) {}
 
   async createBooking(input: Record<string, unknown>) {
     const bookingDate = new Date(input.bookingDate as string);

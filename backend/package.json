@@ -7,6 +7,8 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
+    "seed:admin": "tsx src/scripts/seedAdmin.ts",
+    "test:admin-login": "tsx src/scripts/testAdminLogin.ts",
     "lint": "eslint . --ext .ts"
   },
   "dependencies": {
@@ -31,11 +33,12 @@
     "@types/morgan": "^1.9.0",
     "@types/multer": "^2.0.0",
     "@types/node": "^22.10.1",
+    "@types/uuid": "^10.0.0",
     "eslint": "^9.14.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-import": "^2.31.0",
     "eslint-plugin-node": "^11.1.0",
-    "typescript": "^5.7.2",
-    "tsx": "^4.19.0"
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.2"
   }
 }

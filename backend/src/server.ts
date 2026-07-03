@@ -15,6 +15,7 @@ import serviceRoutes from './routes/serviceRoutes.js';
 import bookingRoutes from './routes/bookingRoutes.js';
 import vehicleRoutes from './routes/vehicleRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
+import inventoryRoutes from './routes/inventoryRoutes.js';
 
 dotenv.config();
 
@@ -41,6 +42,7 @@ app.use('/api/services', serviceRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/inventory', inventoryRoutes);
 
 app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok', service: 'SpeedX Garage API' });
