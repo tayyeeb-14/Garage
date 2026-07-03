@@ -5,12 +5,9 @@ export const createServiceSchema = z.object({
   category: z.string().min(1, 'Category is required'),
   description: z.string().max(2000).optional(),
   price: z.number().min(0, 'Price cannot be negative'),
-  discountPrice: z.number().min(0, 'Discount price cannot be negative').optional(),
-  estimatedDuration: z.number().min(15, 'Duration must be at least 15 minutes').optional(),
+  estimatedDuration: z.number().min(15, 'Estimated time must be at least 15 minutes').optional(),
   thumbnailImage: z.string().optional(),
   galleryImages: z.array(z.string()).optional(),
-  featured: z.boolean().optional(),
-  popular: z.boolean().optional(),
   isActive: z.boolean().optional(),
 });
 

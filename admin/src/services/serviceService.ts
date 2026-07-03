@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:5000/api/services';
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api/services';
 
 const request = async <T>(path: string, options: RequestInit = {}): Promise<T> => {
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -18,14 +18,11 @@ export interface ServiceItem {
   _id: string;
   name: string;
   description?: string;
+  category?: string;
   price: number;
-  discountPrice?: number;
   estimatedDuration?: number;
   thumbnailImage?: string;
   galleryImages?: string[];
-  category?: { _id: string; name: string };
-  featured?: boolean;
-  popular?: boolean;
   isActive?: boolean;
 }
 

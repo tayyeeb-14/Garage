@@ -7,7 +7,7 @@ export class ServiceRepository {
   }
 
   async findById(id: string) {
-    return Service.findById(id).populate('category', 'name').lean();
+    return Service.findById(id).lean();
   }
 
   async findAll(query: Record<string, unknown>, page = 1, limit = 10) {
@@ -21,7 +21,7 @@ export class ServiceRepository {
     }
 
     if (query.category) {
-      filter.category = new Types.ObjectId(query.category as string);
+      filter.category = query.category as string;
     }
 
     if (query.status) {
@@ -36,7 +36,6 @@ export class ServiceRepository {
 
     const [items, total] = await Promise.all([
       Service.find(filter)
-        .populate('category', 'name')
         .sort(sort)
         .skip((page - 1) * limit)
         .limit(limit)
@@ -48,7 +47,7 @@ export class ServiceRepository {
   }
 
   async update(id: string, data: Partial<IService>) {
-    return Service.findByIdAndUpdate(id, data, { new: true }).populate('category', 'name').lean();
+    return Service.findByIdAndUpdate(id, data, { new: true }).lean();
   }
 
   async softDelete(id: string) {
@@ -57,13 +56,13 @@ export class ServiceRepository {
 
   async listPublic(options: Record<string, unknown> = {}) {
     const filter: FilterQuery<IService> = { deletedAt: { $exists: false }, isActive: true };
-    if (options.category) filter.category = new Types.ObjectId(options.category as string);
+    if (options.category) filter.category = options.category as string;
     if (options.search) {
       filter.$or = [
         { name: { $regex: options.search as string, $options: 'i' } },
         { description: { $regex: options.search as string, $options: 'i' } },
       ];
     }
-    return Service.find(filter).populate('category', 'name').sort({ featured: -1, popular: -1, createdAt: -1 }).lean();
+    return Service.find(filter).sort({ createdAt: -1 }).lean();
   }
 }
