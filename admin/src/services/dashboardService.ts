@@ -1,7 +1,21 @@
 const API_BASE_URL = 'http://localhost:5000/api/dashboard';
 
+const getToken = () => {
+  return localStorage.getItem('menterprises-admin-token') || sessionStorage.getItem('menterprises-admin-token');
+};
+
 const request = async <T>(path: string): Promise<T> => {
-  const response = await fetch(`${API_BASE_URL}${path}`);
+  const token = getToken();
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+  });
 
   if (!response.ok) {
     throw new Error('Failed to fetch dashboard data');

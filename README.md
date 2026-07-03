@@ -1,4 +1,4 @@
-# SpeedX Garage
+# M Enterprises
 
 A production-ready foundation for a garage management system built with React Native, React, Node.js, Express, TypeScript, MongoDB Atlas, and JWT.
 

@@ -45,11 +45,11 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/inventory', inventoryRoutes);
 
 app.get('/health', (_req, res) => {
-  res.status(200).json({ status: 'ok', service: 'SpeedX Garage API' });
+  res.status(200).json({ status: 'ok', service: 'M Enterprises API' });
 });
 
 app.get('/', (_req, res) => {
-  res.status(200).json({ message: 'Welcome to SpeedX Garage API' });
+  res.status(200).json({ message: 'Welcome to M Enterprises API' });
 });
 
 app.use(notFound);

@@ -7,8 +7,8 @@
 =====================================
 Email:    admin@menterprises.com
 Password: Admin@12345
-Name:     Super Admin
-Role:     super_admin
+Name:     Admin
+Role:     admin
 Status:   active
 
 📊 ACCOUNT DETAILS:
@@ -24,7 +24,7 @@ Account Status:  ✅ Active
 =====================================
 ✅ Password hashed using bcrypt (salt rounds: 10)
 ✅ Email is unique and indexed in MongoDB
-✅ Account role set to 'super_admin' for full access
+✅ Account role set to 'admin' for full access
 ✅ Account status set to 'active'
 ✅ No duplicate accounts (seed script checks before creating)
 
@@ -58,12 +58,12 @@ Account Status:  ✅ Active
    {
      "success": true,
      "data": {
-       "user": {
-         "id": "6a472f26a533fded041d7289",
-         "name": "Super Admin",
-         "email": "admin@menterprises.com",
-         "role": "super_admin"
-       },
+         "user": {
+             "id": "6a472f26a533fded041d7289",
+             "name": "Admin",
+             "email": "admin@menterprises.com",
+             "role": "admin"
+          },
        "accessToken": "eyJhbGc...",
        "refreshToken": "eyJhbGc..."
      }
@@ -97,8 +97,8 @@ Account Status:  ✅ Active
    📋 Admin Details:
       ID: 6a472f26a533fded041d7289
       Email: admin@menterprises.com
-      Name: Super Admin
-      Role: super_admin
+      Name: Admin
+      Role: admin
       Status: active
 
 2. Test Admin Login (after starting backend):
@@ -108,9 +108,9 @@ Account Status:  ✅ Active
    ✅ Login successful!
    📋 User Details:
       ID: 6a472f26a533fded041d7289
-      Name: Super Admin
+      Name: Admin
       Email: admin@menterprises.com
-      Role: super_admin
+      Role: admin
 
 💡 IMPORTANT NOTES:
 =====================================

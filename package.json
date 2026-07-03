@@ -2,7 +2,7 @@
   "name": "speedx-garage",
   "private": true,
   "version": "1.0.0",
-  "description": "SpeedX Garage monorepo for garage management system",
+  "description": "M Enterprises monorepo for garage management system",
   "workspaces": ["backend", "admin", "mobile"],
   "scripts": {
     "backend:dev": "npm --workspace backend run dev",

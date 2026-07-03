@@ -14,7 +14,7 @@ export class InventoryService {
     payload.inventoryId = this.generateInventoryId();
 
     if (payload.image && typeof payload.image === 'string' && payload.image.startsWith('data:')) {
-      const upload = await cloudinary.uploader.upload(payload.image, { folder: 'speedx/inventory' });
+      const upload = await cloudinary.uploader.upload(payload.image, { folder: 'menterprises/inventory' });
       payload.image = upload.secure_url;
     }
 
@@ -35,7 +35,7 @@ export class InventoryService {
     const payload = { ...input } as Record<string, unknown>;
 
     if (payload.image && typeof payload.image === 'string' && payload.image.startsWith('data:')) {
-      const upload = await cloudinary.uploader.upload(payload.image, { folder: 'speedx/inventory' });
+      const upload = await cloudinary.uploader.upload(payload.image, { folder: 'menterprises/inventory' });
       payload.image = upload.secure_url;
     }
 

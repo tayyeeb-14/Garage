@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "SpeedX Garage",
-    "slug": "speedx-garage",
-    "scheme": "speedx-garage",
+    "name": "M Enterprises",
+    "slug": "menterprises",
+    "scheme": "menterprises",
     "platforms": ["ios", "android", "web"],
     "version": "1.0.0",
     "orientation": "portrait",

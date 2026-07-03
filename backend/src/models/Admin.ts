@@ -4,7 +4,7 @@ export interface IAdmin extends Document {
   name: string;
   email: string;
   passwordHash: string;
-  role: 'super_admin' | 'admin' | 'manager';
+  role: 'admin';
   status: 'active' | 'inactive' | 'suspended';
   createdAt: Date;
   updatedAt: Date;
@@ -34,7 +34,7 @@ const adminSchema = new Schema<IAdmin>(
     },
     role: {
       type: String,
-      enum: ['super_admin', 'admin', 'manager'],
+      enum: ['admin'],
       default: 'admin',
     },
     status: {

@@ -1,17 +1,16 @@
 import { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 
-const LoginPage = ({ onSuccess }: { onSuccess: () => void }) => {
+const LoginPage = () => {
   const { login, isLoading, error } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    const success = await login(email, password, rememberMe);
-    if (success) onSuccess();
+    await login(email, password, rememberMe);
   };
 
   return (
@@ -19,7 +18,7 @@ const LoginPage = ({ onSuccess }: { onSuccess: () => void }) => {
       <div style={{ width: '100%', maxWidth: '430px', background: '#fff', borderRadius: '24px', padding: '2rem', boxShadow: '0 18px 60px rgba(15, 23, 42, 0.18)' }}>
         <div style={{ marginBottom: '1.5rem' }}>
           <h2 style={{ margin: 0, fontSize: '1.7rem', color: '#0f172a' }}>Admin Sign In</h2>
-          <p style={{ margin: '0.45rem 0 0', color: '#64748b' }}>Access the SpeedX Garage control center</p>
+          <p style={{ margin: '0.45rem 0 0', color: '#64748b' }}>Access the M Enterprises control center</p>
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '1rem' }}>

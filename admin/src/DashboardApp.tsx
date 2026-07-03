@@ -99,7 +99,7 @@ const DashboardApp = () => {
       <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
         <header style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
           <div>
-            <h1 style={{ margin: 0, color: '#0f172a', fontSize: '2rem' }}>SpeedX Garage Admin Dashboard</h1>
+            <h1 style={{ margin: 0, color: '#0f172a', fontSize: '2rem' }}>M Enterprises Admin Dashboard</h1>
             <p style={{ margin: '0.4rem 0 0', color: '#64748b' }}>Operations overview and recent activity</p>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
