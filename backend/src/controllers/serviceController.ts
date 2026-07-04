@@ -6,6 +6,7 @@ export class ServiceController {
 
   createService = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      console.log('Controller createService body:', req.body);
       const service = await this.serviceService.createService(req.body);
       res.status(201).json({ success: true, data: service });
     } catch (error) {
@@ -37,6 +38,7 @@ export class ServiceController {
 
   updateService = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      console.log('Controller updateService body:', req.body);
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const service = await this.serviceService.updateService(id, req.body);
       if (!service) {

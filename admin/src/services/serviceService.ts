@@ -2,8 +2,8 @@ const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api/
 
 const request = async <T>(path: string, options: RequestInit = {}): Promise<T> => {
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
     ...options,
+    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
   });
 
   const payload = await response.json().catch(() => ({}));

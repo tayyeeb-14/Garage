@@ -14,7 +14,7 @@ const ServiceForm = ({ initialService, onSave, onCancel }: ServiceFormProps) => 
   const [description, setDescription] = useState(initialService?.description ?? '');
   const [price, setPrice] = useState(initialService?.price ?? 0);
   const [estimatedDuration, setEstimatedDuration] = useState(initialService?.estimatedDuration ?? 30);
-  const [category, setCategory] = useState(initialService?.category ?? '');
+  const [category, setCategory] = useState(typeof initialService?.category === 'string' ? initialService.category : String(initialService?.category ?? '') );
   const [isActive, setIsActive] = useState(initialService?.isActive ?? true);
   const [thumbnailPreview, setThumbnailPreview] = useState(initialService?.thumbnailImage ?? '');
   const [galleryPreviews, setGalleryPreviews] = useState<string[]>(initialService?.galleryImages ?? []);
@@ -100,7 +100,7 @@ const ServiceForm = ({ initialService, onSave, onCancel }: ServiceFormProps) => 
   const currentAction = initialService?._id ? 'Update Service' : 'Create Service';
 
   return (
-    <form onSubmit={handleSubmit} style={{ background: '#fff', borderRadius: '16px', padding: '1.5rem', boxShadow: '0 8px 30px rgba(15, 23, 42, 0.08)', border: '1px solid #e2e8f0', marginBottom: '1.5rem' }}>
+    <form noValidate onSubmit={handleSubmit} style={{ background: '#fff', borderRadius: '16px', padding: '1.5rem', boxShadow: '0 8px 30px rgba(15, 23, 42, 0.08)', border: '1px solid #e2e8f0', marginBottom: '1.5rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
         <div>
           <h2 style={{ margin: 0, color: '#0f172a' }}>{currentAction}</h2>
@@ -116,6 +116,7 @@ const ServiceForm = ({ initialService, onSave, onCancel }: ServiceFormProps) => 
       <div style={{ display: 'grid', gap: '1rem', marginBottom: '1rem' }}>
         <input
           type="text"
+          name="name"
           placeholder="Service Name *"
           value={name}
           onChange={(event) => setName(event.target.value)}
@@ -134,6 +135,7 @@ const ServiceForm = ({ initialService, onSave, onCancel }: ServiceFormProps) => 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
           <input
             type="text"
+            name="category"
             placeholder="Category *"
             value={category}
             onChange={(event) => setCategory(event.target.value)}
