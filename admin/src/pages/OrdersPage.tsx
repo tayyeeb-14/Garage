@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { formatCurrency } from '../utils/currency';
 import { useAuth } from '../hooks/useAuth';
 import { orderService, OrderItem } from '../services/orderService';
 
@@ -69,7 +70,7 @@ const OrdersPage = () => {
   };
 
   const openWhatsApp = (order: OrderItem) => {
-    const message = `Order ID: ${order.orderId}\nBooking ID: ${order.booking?.bookingId ?? 'N/A'}\nCustomer: ${order.customer?.fullName ?? 'N/A'}\nPhone: ${order.customer?.phone ?? 'N/A'}\nVehicle: ${order.vehicle ? `${order.vehicle.make} ${order.vehicle.modelName} (${order.vehicle.plateNumber})` : 'N/A'}\nServices: ${order.services?.map((service) => service.name).join(', ') ?? 'N/A'}\nDate: ${order.booking?.bookingDate ?? 'N/A'}\nTime: ${order.booking?.preferredTime ?? 'N/A'}\nAddress: ${order.booking?.address ?? 'N/A'}\nTotal: ${order.totalAmount}\nPayment: ${order.paymentMethod}\nStatus: ${order.orderStatus}`;
+    const message = `Order ID: ${order.orderId}\nBooking ID: ${order.booking?.bookingId ?? 'N/A'}\nCustomer: ${order.customer?.fullName ?? 'N/A'}\nPhone: ${order.customer?.phone ?? 'N/A'}\nVehicle: ${order.vehicle ? `${order.vehicle.make} ${order.vehicle.modelName} (${order.vehicle.plateNumber})` : 'N/A'}\nServices: ${order.services?.map((service) => service.name).join(', ') ?? 'N/A'}\nDate: ${order.booking?.bookingDate ?? 'N/A'}\nTime: ${order.booking?.preferredTime ?? 'N/A'}\nAddress: ${order.booking?.address ?? 'N/A'}\nTotal: ${formatCurrency(order.totalAmount ?? 0)}\nPayment: ${order.paymentMethod}\nStatus: ${order.orderStatus}`;
     const url = `https://wa.me/15551234567?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank', 'noopener,noreferrer');
   };
@@ -125,7 +126,7 @@ const OrdersPage = () => {
                   <div>
                     <div style={{ fontWeight: 700, color: '#0f172a' }}>{order.orderId}</div>
                     <div style={{ color: '#64748b', marginTop: '0.25rem' }}>{order.customer?.fullName ?? 'Customer'}</div>
-                    <div style={{ color: '#64748b' }}>{order.vehicle?.plateNumber ?? 'Vehicle'} • ${order.totalAmount}</div>
+                       <div style={{ color: '#64748b' }}>{order.vehicle?.plateNumber ?? 'Vehicle'} • {formatCurrency(order.totalAmount ?? 0)}</div>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                     <select value={order.orderStatus} onChange={(event) => void updateOrderStatus(order._id, event.target.value)} style={{ padding: '0.6rem 0.8rem', borderRadius: '10px', border: '1px solid #cbd5e1' }}>

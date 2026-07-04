@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Image, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { formatCurrency } from '../utils/currency';
 
 interface ServiceItem {
   _id: string;
@@ -53,7 +54,7 @@ const MobileServiceScreen = () => {
                 <Text style={styles.cardTitle}>{item.name}</Text>
                 <Text style={styles.cardText} numberOfLines={2}>{item.description ?? 'Premium service for your vehicle.'}</Text>
                 <View style={styles.row}>
-                  <Text style={styles.price}>${item.price}</Text>
+                  <Text style={styles.price}>{formatCurrency(item.price)}</Text>
                   <TouchableOpacity style={styles.button}>
                     <Text style={styles.buttonText}>Book</Text>
                   </TouchableOpacity>

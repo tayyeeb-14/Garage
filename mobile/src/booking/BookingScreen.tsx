@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { formatCurrency } from '../utils/currency';
 
 interface Vehicle { _id: string; plateNumber: string; make: string; modelName: string; year: number; }
 interface Service { _id: string; name: string; price: number; }
@@ -99,7 +100,7 @@ const BookingScreen = () => {
       <Text style={styles.label}>Service</Text>
       {services.map((service) => (
         <TouchableOpacity key={service._id} style={[styles.option, draft.service === service._id && styles.optionSelected]} onPress={() => setDraft((prev) => ({ ...prev, service: service._id }))}>
-          <Text style={styles.optionText}>{service.name} • ${service.price}</Text>
+          <Text style={styles.optionText}>{service.name} • {formatCurrency(service.price)}</Text>
         </TouchableOpacity>
       ))}
 

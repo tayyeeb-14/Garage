@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { formatCurrency } from '../utils/currency';
 import { useAuth } from '../hooks/useAuth';
 import { inventoryService, InventoryItem } from '../services/inventoryService';
 
@@ -146,8 +147,8 @@ const InventoryListPage = ({ onEditClick }: { onEditClick?: (item: InventoryItem
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
                     <div style={{ textAlign: 'right', marginRight: '0.5rem' }}>
-                      <div style={{ fontWeight: 600, color: '#0f172a' }}>${item.sellingPrice}</div>
-                      <div style={{ fontSize: '12px', color: '#64748b', marginTop: '0.25rem' }}>Cost: ${item.purchasePrice}</div>
+                      <div style={{ fontWeight: 600, color: '#0f172a' }}>{formatCurrency(item.sellingPrice)}</div>
+                      <div style={{ fontSize: '12px', color: '#64748b', marginTop: '0.25rem' }}>Cost: {formatCurrency(item.purchasePrice)}</div>
                     </div>
                     <button onClick={() => { setStockItemId(item._id); setStockAction('in'); setShowStockModal(true); }} style={{ padding: '0.6rem 0.8rem', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontSize: '12px' }}>Stock In</button>
                     <button onClick={() => { setStockItemId(item._id); setStockAction('out'); setShowStockModal(true); }} style={{ padding: '0.6rem 0.8rem', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontSize: '12px' }}>Stock Out</button>

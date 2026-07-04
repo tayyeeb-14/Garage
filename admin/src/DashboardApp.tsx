@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { formatCurrency } from './utils/currency';
 import { useDashboard } from './hooks/useDashboard';
 import LoadingState from './components/LoadingState';
 import ErrorState from './components/ErrorState';
@@ -124,7 +125,7 @@ const DashboardApp = () => {
           <StatCard title="Total Products" value={stats?.products ?? 0} subtitle="Inventory items" />
           <StatCard title="Total Bookings" value={stats?.bookings ?? 0} subtitle="Scheduled jobs" />
           <StatCard title="Total Orders" value={stats?.orders ?? 0} subtitle="Sales activity" />
-          <StatCard title="Revenue" value={`$${(stats?.revenue ?? 0).toLocaleString()}`} subtitle="Gross revenue" />
+          <StatCard title="Revenue" value={formatCurrency(stats?.revenue ?? 0)} subtitle="Gross revenue" />
         </section>
 
         <section style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
@@ -149,7 +150,7 @@ const DashboardApp = () => {
                   <div key={order._id} style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '0.75rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem' }}>
                       <strong>{order.customer?.fullName ?? 'Customer'}</strong>
-                      <span style={{ color: '#2563eb' }}>${order.total}</span>
+                      <span style={{ color: '#2563eb' }}>{formatCurrency(order.total)}</span>
                     </div>
                     <div style={{ fontSize: '0.9rem', color: '#64748b', marginTop: '0.25rem' }}>{order.status}</div>
                   </div>

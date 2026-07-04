@@ -2,7 +2,7 @@
   "name": "@speedx-garage/mobile",
   "version": "1.0.0",
   "private": true,
-  "main": "node_modules/expo/AppEntry.js",
+  "main": "./index.js",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
@@ -12,6 +12,7 @@
   "dependencies": {
     "@expo/metro-runtime": "~4.0.1",
     "expo": "~52.0.0",
+    "expo-secure-store": "^57.0.0",
     "expo-status-bar": "^56.0.4",
     "react": "18.3.1",
     "react-native": "0.76.5",

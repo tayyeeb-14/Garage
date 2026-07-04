@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { formatCurrency } from '../utils/currency';
 import { ActivityIndicator, Alert, FlatList, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 interface OrderItem {
@@ -49,7 +50,7 @@ const OrderListScreen = () => {
       `Date: ${order.booking?.bookingDate ?? 'N/A'}`,
       `Time: ${order.booking?.preferredTime ?? 'N/A'}`,
       `Address: ${order.booking?.address ?? 'N/A'}`,
-      `Total: ${order.totalAmount}`,
+      `Total: ${formatCurrency(order.totalAmount)}`,
       `Payment: ${order.paymentMethod}`,
       `Status: ${order.orderStatus}`,
     ].join('\n');
@@ -79,7 +80,7 @@ const OrderListScreen = () => {
               </View>
               <Text style={styles.meta}>Vehicle: {item.vehicle?.plateNumber ?? 'N/A'}</Text>
               <Text style={styles.meta}>Services: {item.services?.map((service) => service.name).join(', ') ?? 'N/A'}</Text>
-              <Text style={styles.meta}>Total: ${item.totalAmount}</Text>
+              <Text style={styles.meta}>Total: {formatCurrency(item.totalAmount)}</Text>
               <Text style={styles.meta}>Payment: {item.paymentStatus}</Text>
               <Pressable style={styles.button} onPress={() => openWhatsApp(item)}>
                 <Text style={styles.buttonText}>Contact Support</Text>

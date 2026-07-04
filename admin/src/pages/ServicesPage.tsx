@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { formatCurrency } from '../utils/currency';
 import { useAuth } from '../hooks/useAuth';
 import { serviceService, ServiceItem } from '../services/serviceService';
 import ServiceForm from './ServiceForm';
@@ -141,7 +142,7 @@ const ServicesPage = () => {
                   </div>
 
                   <div style={{ textAlign: 'right', minWidth: '140px' }}>
-                    <div style={{ fontWeight: 700, color: '#2563eb' }}>${service.price}</div>
+                    <div style={{ fontWeight: 700, color: '#2563eb' }}>{formatCurrency(service.price)}</div>
                     <div style={{ marginTop: '0.25rem', color: service.isActive ? '#16a34a' : '#dc2626' }}>{service.isActive ? 'Active' : 'Inactive'}</div>
                     <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
                       <button
