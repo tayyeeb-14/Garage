@@ -1,3 +1,4 @@
+import type { Express } from 'express';
 import { Request, Response, NextFunction } from 'express';
 import { ServiceService } from '../services/serviceService.js';
 
@@ -6,8 +7,14 @@ export class ServiceController {
 
   createService = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      console.log('Controller createService body:', req.body);
-      const service = await this.serviceService.createService(req.body);
+      const files = req.files as Record<string, Express.Multer.File[]> | undefined;
+      const payload = {
+        ...req.body,
+        thumbnailImageFile: files?.thumbnailImageFile?.[0],
+        galleryImageFiles: files?.galleryImageFiles ?? [],
+      };
+      console.log('Controller createService body:', payload);
+      const service = await this.serviceService.createService(payload);
       res.status(201).json({ success: true, data: service });
     } catch (error) {
       next(error);
@@ -38,9 +45,15 @@ export class ServiceController {
 
   updateService = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      console.log('Controller updateService body:', req.body);
+      const files = req.files as Record<string, Express.Multer.File[]> | undefined;
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-      const service = await this.serviceService.updateService(id, req.body);
+      const payload = {
+        ...req.body,
+        thumbnailImageFile: files?.thumbnailImageFile?.[0],
+        galleryImageFiles: files?.galleryImageFiles ?? [],
+      };
+      console.log('Controller updateService body:', payload);
+      const service = await this.serviceService.updateService(id, payload);
       if (!service) {
         return res.status(404).json({ success: false, message: 'Service not found' });
       }

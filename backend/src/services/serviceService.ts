@@ -1,27 +1,36 @@
+import type { Express } from 'express';
 import { ServiceRepository } from '../repositories/serviceRepository.js';
-import cloudinary from '../config/cloudinary.js';
+import { deleteCloudinaryAsset, uploadBufferToCloudinary } from '../utils/cloudinaryUtils.js';
+import type { IService } from '../models/Service.js';
 
 export class ServiceService {
   constructor(private readonly serviceRepository: ServiceRepository) {}
 
   async createService(input: Record<string, unknown>) {
     const payload = { ...input } as Record<string, unknown>;
-    if (payload.thumbnailImage && typeof payload.thumbnailImage === 'string') {
-      const upload = await cloudinary.uploader.upload(payload.thumbnailImage, { folder: 'menterprises/services' });
+    const thumbnailFile = payload.thumbnailImageFile as Express.Multer.File | undefined;
+    const galleryFiles = Array.isArray(payload.galleryImageFiles)
+      ? (payload.galleryImageFiles as Express.Multer.File[])
+      : [];
+
+    delete payload.thumbnailImageFile;
+    delete payload.galleryImageFiles;
+
+    if (thumbnailFile) {
+      const upload = await uploadBufferToCloudinary(thumbnailFile, 'menterprises/services');
       payload.thumbnailImage = upload.secure_url;
     }
 
-    if (Array.isArray(payload.galleryImages)) {
+    if (galleryFiles.length) {
       payload.galleryImages = await Promise.all(
-        payload.galleryImages.map(async (image) => {
-          if (typeof image !== 'string') return image;
-          const upload = await cloudinary.uploader.upload(image, { folder: 'menterprises/services/gallery' });
+        galleryFiles.map(async (file) => {
+          const upload = await uploadBufferToCloudinary(file, 'menterprises/services/gallery');
           return upload.secure_url;
         })
       );
     }
 
-    return this.serviceRepository.create(payload);
+    return this.serviceRepository.create(payload as Partial<IService>);
   }
 
   async listServices(query: Record<string, unknown>) {
@@ -35,30 +44,54 @@ export class ServiceService {
   }
 
   async updateService(id: string, input: Record<string, unknown>) {
+    const existing = await this.serviceRepository.findById(id);
+    if (!existing) return null;
+
     const payload = { ...input } as Record<string, unknown>;
-    if (payload.thumbnailImage && typeof payload.thumbnailImage === 'string' && payload.thumbnailImage.startsWith('data:')) {
-      const upload = await cloudinary.uploader.upload(payload.thumbnailImage, { folder: 'menterprises/services' });
+    const thumbnailFile = payload.thumbnailImageFile as Express.Multer.File | undefined;
+    const galleryFiles = Array.isArray(payload.galleryImageFiles)
+      ? (payload.galleryImageFiles as Express.Multer.File[])
+      : [];
+
+    delete payload.thumbnailImageFile;
+    delete payload.galleryImageFiles;
+
+    if (thumbnailFile) {
+      if (existing.thumbnailImage) {
+        await deleteCloudinaryAsset(existing.thumbnailImage);
+      }
+      const upload = await uploadBufferToCloudinary(thumbnailFile, 'menterprises/services');
       payload.thumbnailImage = upload.secure_url;
     }
 
-    if (Array.isArray(payload.galleryImages)) {
+    if (galleryFiles.length) {
+      if (Array.isArray(existing.galleryImages) && existing.galleryImages.length > 0) {
+        await Promise.all(existing.galleryImages.map(async (url) => deleteCloudinaryAsset(url)));
+      }
       payload.galleryImages = await Promise.all(
-        payload.galleryImages.map(async (image) => {
-          if (typeof image !== 'string') return image;
-          if (image.startsWith('data:')) {
-            const upload = await cloudinary.uploader.upload(image, { folder: 'menterprises/services/gallery' });
-            return upload.secure_url;
-          }
-          return image;
+        galleryFiles.map(async (file) => {
+          const upload = await uploadBufferToCloudinary(file, 'menterprises/services/gallery');
+          return upload.secure_url;
         })
       );
     }
 
-    return this.serviceRepository.update(id, payload);
+    return this.serviceRepository.update(id, payload as Partial<IService>);
   }
 
   async deleteService(id: string) {
-    return this.serviceRepository.softDelete(id);
+    const existing = await this.serviceRepository.findById(id);
+    if (!existing) return null;
+
+    if (existing.thumbnailImage) {
+      await deleteCloudinaryAsset(existing.thumbnailImage);
+    }
+
+    if (Array.isArray(existing.galleryImages) && existing.galleryImages.length > 0) {
+      await Promise.all(existing.galleryImages.map(async (url) => deleteCloudinaryAsset(url)));
+    }
+
+    return this.serviceRepository.delete(id);
   }
 
   async listPublicServices(query: Record<string, unknown> = {}) {

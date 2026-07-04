@@ -23,18 +23,6 @@ const ServiceForm = ({ initialService, onSave, onCancel }: ServiceFormProps) => 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const serializeFile = (file: File) =>
-    new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result;
-        if (typeof result === 'string') resolve(result);
-        else reject(new Error('Unable to serialize file'));
-      };
-      reader.onerror = () => reject(new Error('Unable to read file'));
-      reader.readAsDataURL(file);
-    });
-
   const handleThumbnailChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -61,33 +49,25 @@ const ServiceForm = ({ initialService, onSave, onCancel }: ServiceFormProps) => 
       setLoading(true);
       setError(null);
 
-      const payload: any = {
-        name: name.trim(),
-        description: description.trim(),
-        price,
-        estimatedDuration,
-        category: category.trim(),
-        isActive,
-      };
+      const formData = new FormData();
+      formData.append('name', name.trim());
+      formData.append('description', description.trim());
+      formData.append('price', String(price));
+      formData.append('estimatedDuration', String(estimatedDuration));
+      formData.append('category', category.trim());
+      formData.append('isActive', String(isActive));
 
       if (thumbnailFile) {
-        payload.thumbnailImage = await serializeFile(thumbnailFile);
-      } else if (initialService?.thumbnailImage) {
-        payload.thumbnailImage = initialService.thumbnailImage;
+        formData.append('thumbnailImageFile', thumbnailFile);
       }
 
       if (galleryFiles.length) {
-        payload.galleryImages = await Promise.all(galleryFiles.map((file) => serializeFile(file)));
-        if (initialService?.galleryImages?.length) {
-          payload.galleryImages = [...initialService.galleryImages, ...payload.galleryImages];
-        }
-      } else if (initialService?.galleryImages) {
-        payload.galleryImages = initialService.galleryImages;
+        galleryFiles.forEach((file) => formData.append('galleryImageFiles', file));
       }
 
       const service = initialService?._id
-        ? await serviceService.update(token, initialService._id, payload)
-        : await serviceService.create(token, payload);
+        ? await serviceService.update(token, initialService._id, formData)
+        : await serviceService.create(token, formData);
 
       onSave?.(service);
     } catch (err) {

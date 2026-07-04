@@ -50,6 +50,10 @@ export class ServiceRepository {
     return Service.findByIdAndUpdate(id, data, { new: true }).lean();
   }
 
+  async delete(id: string) {
+    return Service.findByIdAndDelete(id).lean();
+  }
+
   async softDelete(id: string) {
     return Service.findByIdAndUpdate(id, { deletedAt: new Date(), isActive: false }, { new: true }).lean();
   }

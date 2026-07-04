@@ -9,13 +9,22 @@ export const createServiceSchema = z.object({
     .trim()
     .min(1, 'Category is required'),
   description: z.string({ invalid_type_error: 'Description must be a string' }).max(2000, 'Description cannot exceed 2000 characters').optional(),
-  price: z.number({ required_error: 'Price is required', invalid_type_error: 'Price must be a number' }).min(0, 'Price cannot be negative'),
-  estimatedDuration: z.number({ invalid_type_error: 'Estimated duration must be a number' })
+  price: z.preprocess((value) => {
+    if (typeof value === 'string') return Number(value);
+    return value;
+  }, z.number({ required_error: 'Price is required', invalid_type_error: 'Price must be a number' }).min(0, 'Price cannot be negative')),
+  estimatedDuration: z.preprocess((value) => {
+    if (typeof value === 'string') return Number(value);
+    return value;
+  }, z.number({ invalid_type_error: 'Estimated duration must be a number' })
     .min(15, 'Estimated time must be at least 15 minutes')
-    .optional(),
+    .optional()),
   thumbnailImage: z.string({ invalid_type_error: 'Thumbnail image must be a string' }).optional(),
   galleryImages: z.array(z.string({ invalid_type_error: 'Gallery image must be a string' })).optional(),
-  isActive: z.boolean({ invalid_type_error: 'isActive must be a boolean' }).optional(),
+  isActive: z.preprocess((value) => {
+    if (typeof value === 'string') return value === 'true';
+    return value;
+  }, z.boolean({ invalid_type_error: 'isActive must be a boolean' }).optional()),
 });
 
 export const updateServiceSchema = createServiceSchema.partial();
