@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
@@ -8,12 +8,19 @@ export type AuthRoute = 'login' | 'register' | 'forgot';
 
 interface AuthNavigatorProps {
   onAuthSuccess: () => void;
+  resetKey?: number;
 }
 
-const AuthNavigator = ({ onAuthSuccess }: AuthNavigatorProps) => {
+const AuthNavigator = ({ onAuthSuccess, resetKey }: AuthNavigatorProps) => {
   const [route, setRoute] = useState<AuthRoute>('login');
 
+  useEffect(() => {
+    setRoute('login');
+  }, [resetKey]);
+
   const moveTo = (newRoute: AuthRoute) => setRoute(newRoute);
+
+  console.log('Auth screen shown');
 
   return (
     <View style={{ flex: 1 }}>

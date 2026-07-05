@@ -37,6 +37,14 @@ export class AuthController {
     }
   };
 
+  logout = async (_req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      sendSuccess(res, { message: 'Logged out successfully' }, 200);
+    } catch (error) {
+      next(error);
+    }
+  };
+
   refresh = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const { refreshToken } = req.body as { refreshToken?: string };

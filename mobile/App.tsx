@@ -9,7 +9,7 @@ import ProfileScreen from './src/screens/ProfileScreen';
 import ServicesScreen from './src/services/ServiceScreen';
 import BookingHistoryScreen from './src/booking/BookingHistoryScreen';
 import BottomTabBar, { TabKey } from './src/components/BottomTabBar';
-import { verifyAuthToken } from './src/services/authService';
+import { clearAuthState, getAuthTokens, verifyAuthToken } from './src/services/authService';
 
 const OfflineScreen = ({ onRetry }: { onRetry: () => void }) => (
   <View style={styles.offlineContainer}>
@@ -26,13 +26,21 @@ type AuthStatus = 'checking' | 'authenticated' | 'unauthenticated' | 'offline';
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [authStatus, setAuthStatus] = useState<AuthStatus>('checking');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>('home');
+  const [authScreenKey, setAuthScreenKey] = useState(0);
 
   const verifyAuth = async () => {
     console.log('Auth init start');
+    const tokens = await getAuthTokens();
+    console.log('App startup token', tokens.accessToken ? 'present' : 'missing');
+    console.log('App startup refresh token', tokens.refreshToken ? 'present' : 'missing');
+    console.log('App startup cached user', tokens.user ? 'present' : 'missing');
+    console.log('App startup isAuthenticated', isAuthenticated);
     const result = await verifyAuthToken();
     console.log('Auth verification result', result);
     setAuthStatus(result);
+    setIsAuthenticated(result === 'authenticated');
   };
 
   useEffect(() => {
@@ -48,6 +56,7 @@ export default function App() {
   const handleAuthSuccess = () => {
     console.log('Auth success');
     setAuthStatus('authenticated');
+    setIsAuthenticated(true);
   };
 
   const handleRetry = () => {
@@ -55,6 +64,20 @@ export default function App() {
     setShowSplash(true);
     setAuthStatus('checking');
     void verifyAuth();
+  };
+
+  const handleLogout = async () => {
+    console.log('Logout pressed');
+    const tokensBeforeLogout = await getAuthTokens();
+    console.log('Tokens before logout', tokensBeforeLogout);
+    await clearAuthState();
+    const tokensAfterLogout = await getAuthTokens();
+    console.log('Tokens after logout', tokensAfterLogout);
+    setActiveTab('home');
+    setAuthStatus('unauthenticated');
+    setIsAuthenticated(false);
+    setAuthScreenKey((value) => value + 1);
+    console.log('Auth state updated', { authStatus: 'unauthenticated', isAuthenticated: false });
   };
 
   if (showSplash || authStatus === 'checking') {
@@ -81,7 +104,7 @@ export default function App() {
   return (
     <View style={styles.appContainer}>
       <View style={styles.contentContainer}>
-        {authStatus === 'authenticated' ? (
+        {isAuthenticated ? (
           activeTab === 'home' ? (
             <HomeDashboard />
           ) : activeTab === 'services' ? (
@@ -91,13 +114,16 @@ export default function App() {
           ) : activeTab === 'notifications' ? (
             <NotificationsScreen />
           ) : (
-            <ProfileScreen />
+            <ProfileScreen onLogout={handleLogout} />
           )
         ) : (
-          <AuthNavigator onAuthSuccess={handleAuthSuccess} />
+          <>
+            {console.log('Auth screen shown')}
+            <AuthNavigator key={authScreenKey} resetKey={authScreenKey} onAuthSuccess={handleAuthSuccess} />
+          </>
         )}
       </View>
-      {authStatus === 'authenticated' ? <BottomTabBar activeTab={activeTab} onChangeTab={setActiveTab} /> : null}
+      {isAuthenticated ? <BottomTabBar activeTab={activeTab} onChangeTab={setActiveTab} /> : null}
       <StatusBar style="auto" />
     </View>
   );

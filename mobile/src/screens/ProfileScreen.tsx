@@ -1,13 +1,30 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Alert, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Profile } from '../services/dashboardService';
 
 interface ProfileScreenProps {
   profile?: Profile | null;
+  onLogout?: () => Promise<void> | void;
 }
 
-const ProfileScreen = ({ profile }: ProfileScreenProps) => {
+const ProfileScreen = ({ profile, onLogout }: ProfileScreenProps) => {
   const firstName = profile?.fullName?.split(' ')[0] ?? 'Customer';
+
+  const handleLogout = () => {
+    console.log('Logout button pressed');
+    Alert.alert('Logout', 'Are you sure you want to logout?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Logout',
+        style: 'destructive',
+        onPress: () => {
+          if (onLogout) {
+            void onLogout();
+          }
+        },
+      },
+    ]);
+  };
 
   return (
     <View style={styles.container}>
@@ -29,8 +46,8 @@ const ProfileScreen = ({ profile }: ProfileScreenProps) => {
         <Text style={styles.sectionText}>For help with bookings or billing, reach out to support from the web portal.</Text>
       </View>
 
-      <TouchableOpacity style={styles.actionButton} disabled>
-        <Text style={styles.actionText}>Account settings coming soon</Text>
+      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        <Text style={styles.logoutText}>Logout</Text>
       </TouchableOpacity>
     </View>
   );
@@ -94,16 +111,16 @@ const styles = StyleSheet.create({
     color: '#64748b',
     lineHeight: 22,
   },
-  actionButton: {
+  logoutButton: {
     marginTop: 18,
-    backgroundColor: '#e2e8f0',
+    backgroundColor: '#ef4444',
     paddingVertical: 16,
     borderRadius: 16,
     alignItems: 'center',
   },
-  actionText: {
-    color: '#475569',
-    fontWeight: '700',
+  logoutText: {
+    color: '#ffffff',
+    fontWeight: '800',
   },
 });
 

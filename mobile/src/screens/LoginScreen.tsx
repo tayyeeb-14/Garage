@@ -39,7 +39,7 @@ const LoginScreen = ({ onLoginSuccess, onNavigateRegister, onNavigateForgot }: L
     setLoading(true);
     try {
       const auth = await authApi.login(email.trim(), password);
-      await storeAuthTokens(auth.accessToken, auth.refreshToken);
+      await storeAuthTokens(auth.accessToken, auth.refreshToken, auth.user);
       onLoginSuccess();
     } catch (loginError) {
       setError(loginError instanceof Error ? loginError.message : 'Login failed');

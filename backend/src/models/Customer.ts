@@ -3,6 +3,7 @@ import mongoose, { Document, Schema } from 'mongoose';
 export interface ICustomer extends Document {
   fullName: string;
   email: string;
+  passwordHash: string;
   phone: string;
   address?: string;
   status: 'active' | 'inactive' | 'blocked';
@@ -26,6 +27,11 @@ const customerSchema = new Schema<ICustomer>(
       lowercase: true,
       trim: true,
       match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email address'],
+    },
+    passwordHash: {
+      type: String,
+      required: [true, 'Password hash is required'],
+      minlength: [6, 'Password hash must be at least 6 characters'],
     },
     phone: {
       type: String,

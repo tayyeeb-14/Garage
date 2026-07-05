@@ -60,7 +60,7 @@ const RegisterScreen = ({ onRegisterSuccess, onNavigateLogin }: RegisterScreenPr
     setLoading(true);
     try {
       const auth = await authApi.register(fullName.trim(), email.trim(), phone.trim(), password);
-      await storeAuthTokens(auth.accessToken, auth.refreshToken);
+      await storeAuthTokens(auth.accessToken, auth.refreshToken, auth.user);
       onRegisterSuccess();
     } catch (registerError) {
       setError(registerError instanceof Error ? registerError.message : 'Registration failed');
