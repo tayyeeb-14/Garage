@@ -13,11 +13,12 @@ import InventoryListPage from './pages/InventoryListPage';
 import InventoryDashboard from './pages/InventoryDashboard';
 import InventoryForm from './pages/InventoryForm';
 import LowStockPage from './pages/LowStockPage';
+import BannerManagementPage from './pages/BannerManagementPage';
 import { InventoryItem } from './services/inventoryService';
 
 const DashboardApp = () => {
   const { stats, recentOrders, lowStock, topServices, isLoading, error } = useDashboard();
-  const [activeView, setActiveView] = useState<'dashboard' | 'services' | 'bookings' | 'orders' | 'inventory' | 'inventory-form' | 'low-stock'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'services' | 'bookings' | 'orders' | 'inventory' | 'inventory-form' | 'low-stock' | 'banners'>('dashboard');
   const [editingInventory, setEditingInventory] = useState<InventoryItem | undefined>();
 
 
@@ -95,6 +96,17 @@ const DashboardApp = () => {
     );
   }
 
+  if (activeView === 'banners') {
+    return (
+      <>
+        <button onClick={() => setActiveView('dashboard')} style={{ marginBottom: '1rem', padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>
+          ← Back to Dashboard
+        </button>
+        <BannerManagementPage />
+      </>
+    );
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '1.5rem', fontFamily: 'Inter, sans-serif' }}>
       <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
@@ -115,6 +127,9 @@ const DashboardApp = () => {
             </button>
             <button onClick={() => setActiveView('services')} style={{ padding: '0.8rem 1rem', borderRadius: '12px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>
               Manage Services
+            </button>
+            <button onClick={() => setActiveView('banners')} style={{ padding: '0.8rem 1rem', borderRadius: '12px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>
+              Manage Banners
             </button>
           </div>
         </header>

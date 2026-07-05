@@ -19,3 +19,9 @@ export const serviceImageUpload = multer({
   { name: 'thumbnailImageFile', maxCount: 1 },
   { name: 'galleryImageFiles', maxCount: 10 },
 ]);
+
+export const bannerImageUpload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: imageFileFilter,
+}).single('imageFile');

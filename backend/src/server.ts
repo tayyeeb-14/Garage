@@ -17,6 +17,7 @@ import categoryRoutes from './routes/categoryRoutes.js';
 import vehicleRoutes from './routes/vehicleRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
 import inventoryRoutes from './routes/inventoryRoutes.js';
+import bannerRoutes from './routes/bannerRoutes.js';
 
 dotenv.config();
 
@@ -44,6 +45,7 @@ app.use('/api/bookings', bookingRoutes);
 app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/inventory', inventoryRoutes);
+app.use('/api/banners', bannerRoutes);
 
 app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok', service: 'M Enterprises API' });

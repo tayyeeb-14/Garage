@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Bell, Car, ChevronRight, MapPin, Search, Sparkles, Star, Wrench } from 'lucide-react-native';
 import {
   fetchDashboardStats,
@@ -14,33 +14,36 @@ import {
   Vehicle,
 } from '../services/dashboardService';
 import { formatCurrency } from '../utils/currency';
+import { fetchActiveBanners, MobileBanner } from '../services/bannerService';
 
 const categories = [
+  { label: 'Full Service', icon: '🧰' },
   { label: 'Oil Change', icon: '🛢️' },
-  { label: 'Battery', icon: '🔋' },
   { label: 'Brake', icon: '🛑' },
-  { label: 'Tyres', icon: '🧱' },
+  { label: 'Battery', icon: '🔋' },
   { label: 'Engine', icon: '⚙️' },
-  { label: 'Wash', icon: '🚿' },
-  { label: 'Inspection', icon: '🔍' },
+  { label: 'Tyre', icon: '🛞' },
+  { label: 'Washing', icon: '🚿' },
   { label: 'Pickup', icon: '🚐' },
+  { label: 'Scrap', icon: '♻️' },
 ];
 
-const banners = [
-  { title: 'Premium doorstep service', subtitle: 'Trusted garage care at your location', accent: '#2563eb' },
-  { title: 'Weekend offers', subtitle: 'Save on essential maintenance', accent: '#0f766e' },
-  { title: 'Certified technicians', subtitle: 'Fast turnaround and quality checks', accent: '#7c3aed' },
-];
+const fallbackBanner = {
+  title: 'Premium doorstep service',
+  subtitle: 'Trusted garage care at your location',
+  accent: '#2563eb',
+  badge: 'Fast response',
+};
 
 const popularParts = [
-  { name: 'Engine Oil', brand: 'Castrol', price: 1290, stock: 'In Stock' },
-  { name: 'Brake Pads', brand: 'Gremi', price: 2450, stock: 'Limited' },
-  { name: 'Battery', brand: 'Amaron', price: 3890, stock: 'In Stock' },
+  { name: 'Engine Oil', brand: 'Castrol', price: 1290, stock: 'In Stock', icon: '🛢️' },
+  { name: 'Brake Pads', brand: 'Gremi', price: 2450, stock: 'Limited', icon: '🛑' },
+  { name: 'Battery', brand: 'Amaron', price: 3890, stock: 'In Stock', icon: '🔋' },
 ];
 
 const reviewCards = [
-  { title: 'Fast and reliable', details: 'Booked doorstep service and it arrived right on time.', rating: 4.9, author: 'Asha' },
-  { title: 'Excellent support', details: 'Transparent pricing and very professional technicians.', rating: 5.0, author: 'Rahul' },
+  { title: 'Fast and reliable', details: 'Booked doorstep service and it arrived right on time.', rating: 4.9, author: 'Asha', avatar: 'A', date: '2 days ago' },
+  { title: 'Excellent support', details: 'Transparent pricing and very professional technicians.', rating: 5.0, author: 'Rahul', avatar: 'R', date: '1 week ago' },
 ];
 
 const featureCards = [
@@ -63,6 +66,7 @@ const HomeDashboard = () => {
   const [error, setError] = useState('');
   const [searchText, setSearchText] = useState('');
   const [bannerIndex, setBannerIndex] = useState(0);
+  const [banners, setBanners] = useState<MobileBanner[]>([]);
 
   useEffect(() => {
     const loadContent = async () => {
@@ -70,12 +74,13 @@ const HomeDashboard = () => {
       const loadStartTime = Date.now();
       try {
         setLoading(true);
-        const [userProfile, serviceList, vehicleList, orderList, dashboardStats] = await Promise.all([
+        const [userProfile, serviceList, vehicleList, orderList, dashboardStats, activeBanners] = await Promise.all([
           fetchUserProfile(),
           fetchPublicServices(),
           fetchVehicles(),
           fetchRecentOrders(),
           fetchDashboardStats(),
+          fetchActiveBanners(),
         ]);
 
         setProfile(userProfile);
@@ -83,6 +88,7 @@ const HomeDashboard = () => {
         setVehicles(vehicleList);
         setRecentOrders(orderList);
         setStats(dashboardStats);
+        setBanners(activeBanners);
 
         const activeBooking = orderList.find((order) =>
           ['pending', 'confirmed', 'in_service', 'ready_for_pickup'].includes(order.orderStatus)
@@ -117,31 +123,47 @@ const HomeDashboard = () => {
     return 'Good Evening';
   }, []);
 
+  const activeVehicle = vehicles[0];
+  const activeBanner = banners[bannerIndex] ?? null;
+  const nextServiceReminder = useMemo(() => {
+    if (!activeVehicle?.lastServiceDate) return 'Next reminder: schedule a service soon';
+
+    const parsedDate = new Date(activeVehicle.lastServiceDate);
+    if (Number.isNaN(parsedDate.getTime())) return 'Next reminder: schedule a service soon';
+
+    const nextDate = new Date(parsedDate);
+    nextDate.setMonth(nextDate.getMonth() + 6);
+    return `Next reminder: ${nextDate.toLocaleDateString()}`;
+  }, [activeVehicle]);
+
   const topServices = useMemo(() => services.filter((item) => item.popular || item.featured).slice(0, 4), [services]);
   const filteredServices = useMemo(
     () => services.filter((service) => service.name.toLowerCase().includes(searchText.toLowerCase())),
     [searchText, services]
   );
   const displayServices = searchText.trim().length ? filteredServices : topServices;
-  const activeVehicle = vehicles[0];
-  const heroImage = displayServices[0]?.thumbnailImage;
+  const heroImage = activeBanner?.imageUrl ?? displayServices[0]?.thumbnailImage;
+  const heroColor = activeBanner ? '#2563eb' : fallbackBanner.accent;
+  const heroBadge = activeBanner ? 'Live offer' : fallbackBanner.badge;
 
   useEffect(() => {
+    if (!banners.length) return undefined;
     const timer = setInterval(() => setBannerIndex((value) => (value + 1) % banners.length), 4000);
     return () => clearInterval(timer);
-  }, []);
+  }, [banners.length]);
 
   const onRefresh = () => {
     setRefreshing(true);
     setError('');
     void (async () => {
       try {
-        const [userProfile, serviceList, vehicleList, orderList, dashboardStats] = await Promise.all([
+        const [userProfile, serviceList, vehicleList, orderList, dashboardStats, activeBanners] = await Promise.all([
           fetchUserProfile(),
           fetchPublicServices(),
           fetchVehicles(),
           fetchRecentOrders(),
           fetchDashboardStats(),
+          fetchActiveBanners(),
         ]);
 
         setProfile(userProfile);
@@ -149,6 +171,7 @@ const HomeDashboard = () => {
         setVehicles(vehicleList);
         setRecentOrders(orderList);
         setStats(dashboardStats);
+        setBanners(activeBanners);
 
         const activeBooking = orderList.find((order) =>
           ['pending', 'confirmed', 'in_service', 'ready_for_pickup'].includes(order.orderStatus)
@@ -206,26 +229,58 @@ const HomeDashboard = () => {
           />
         </View>
 
-        <View style={styles.heroCard}>
+        <TouchableOpacity style={[styles.heroCard, { backgroundColor: heroColor }]} activeOpacity={0.9} onPress={() => {
+          if (!activeBanner) return;
+          if (activeBanner.ctaAction === 'external' && activeBanner.targetUrl) {
+            void Linking.openURL(activeBanner.targetUrl);
+          } else if (activeBanner.targetId) {
+            void Linking.openURL(`http://localhost:5000/api/services/${activeBanner.targetId}`);
+          }
+        }}>
+          <View style={styles.heroGlow} />
           <View style={styles.heroText}>
             <View style={styles.heroBadgeRow}>
               <Sparkles size={14} color="#fff" />
-              <Text style={styles.heroBadge}>Premium doorstep care</Text>
+              <Text style={styles.heroBadge}>{heroBadge}</Text>
             </View>
-            <Text style={styles.heroTitle}>{banners[bannerIndex].title}</Text>
-            <Text style={styles.heroSubtitle}>{banners[bannerIndex].subtitle}</Text>
-            <TouchableOpacity style={styles.heroButton} activeOpacity={0.8}>
-              <Text style={styles.heroButtonText}>Book Now</Text>
-            </TouchableOpacity>
+            <Text style={styles.heroTitle}>{activeBanner?.title ?? fallbackBanner.title}</Text>
+            <Text style={styles.heroSubtitle}>{activeBanner?.subtitle ?? fallbackBanner.subtitle}</Text>
+            <View style={styles.heroButton}>
+              <Text style={styles.heroButtonText}>{activeBanner?.ctaText ?? 'Book Now'}</Text>
+            </View>
           </View>
-          {heroImage ? (
-            <Image source={{ uri: heroImage }} style={styles.heroImage} resizeMode="cover" />
-          ) : (
-            <View style={styles.heroImagePlaceholder}>
-              <Car size={28} color="#2563eb" />
-              <Text style={styles.heroImageLabel}>Garage</Text>
-            </View>
-          )}
+          <View style={styles.heroVisual}>
+            {heroImage ? (
+              <Image source={{ uri: heroImage }} style={styles.heroImage} resizeMode="cover" />
+            ) : (
+              <View style={styles.heroImagePlaceholder}>
+                <Car size={28} color="#ffffff" />
+                <Text style={styles.heroImageLabel}>Garage</Text>
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
+        <View style={styles.paginationRow}>
+          {banners.length ? banners.map((banner, index) => (
+            <View key={banner._id} style={[styles.paginationDot, index === bannerIndex ? styles.paginationDotActive : null]} />
+          )) : <View style={[styles.paginationDot, styles.paginationDotActive]} />}
+        </View>
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Service Categories</Text>
+            <Text style={styles.sectionAction}>Explore</Text>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
+            {categories.map((category) => (
+              <View key={category.label} style={styles.categoryCard}>
+                <View style={styles.categoryIconWrap}>
+                  <Text style={styles.categoryIcon}>{category.icon}</Text>
+                </View>
+                <Text style={styles.categoryLabel}>{category.label}</Text>
+              </View>
+            ))}
+          </ScrollView>
         </View>
 
         <View style={styles.section}>
@@ -240,15 +295,20 @@ const HomeDashboard = () => {
             </View>
           ) : activeVehicle ? (
             <View style={styles.vehicleCard}>
-              <View style={styles.vehicleImage}>
-                <Text style={styles.vehicleImageLabel}>Vehicle</Text>
+              <View style={styles.vehicleImageWrap}>
+                <View style={styles.vehicleImageBadge}>
+                  <Car size={30} color="#2563eb" />
+                </View>
               </View>
               <View style={styles.vehicleDetails}>
                 <Text style={styles.vehicleName}>{`${activeVehicle.make} ${activeVehicle.modelName}`}</Text>
-                <Text style={styles.vehicleMeta}>{activeVehicle.plateNumber}</Text>
-                <Text style={styles.vehicleMeta}>{`Last serviced ${activeVehicle.lastServiceDate ?? 'not available'}`}</Text>
+                <View style={styles.vehicleMetaChip}>
+                  <Text style={styles.vehicleMetaChipText}>Reg {activeVehicle.plateNumber}</Text>
+                </View>
+                <Text style={styles.vehicleMeta}>{`Last service: ${activeVehicle.lastServiceDate ?? 'not available'}`}</Text>
+                <Text style={styles.vehicleMeta}>{nextServiceReminder}</Text>
                 <TouchableOpacity style={styles.quickBookButton} activeOpacity={0.85}>
-                  <Text style={styles.quickBookText}>Quick Book</Text>
+                  <Text style={styles.quickBookText}>Book Again</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -269,41 +329,42 @@ const HomeDashboard = () => {
             <Text style={styles.sectionAction}>See all</Text>
           </View>
           {loading ? (
-            Array.from({ length: 2 }).map((_, index) => (
-              <View key={index} style={styles.skeletonServiceCard} />
-            ))
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.serviceScroll}>
+              {Array.from({ length: 3 }).map((_, index) => (
+                <View key={index} style={styles.skeletonServiceCard} />
+              ))}
+            </ScrollView>
           ) : displayServices.length > 0 ? (
-            displayServices.map((service) => (
-              <TouchableOpacity key={service._id} activeOpacity={0.9} style={styles.serviceCard}>
-                {service.thumbnailImage ? (
-                  <Image source={{ uri: service.thumbnailImage }} style={styles.serviceCardImage} />
-                ) : (
-                  <View style={styles.serviceCardImage}>
-                    <Wrench size={28} color="#2563eb" />
-                  </View>
-                )}
-                <View style={styles.serviceCardContent}>
-                  <View style={styles.serviceCardHeaderRow}>
-                    <Text style={styles.serviceCardTitle}>{service.name}</Text>
-                    <View style={styles.ratingChip}>
-                      <Star size={12} color="#f59e0b" fill="#f59e0b" />
-                      <Text style={styles.ratingText}>{service.rating ?? '4.8'}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.serviceScroll}>
+              {displayServices.map((service) => (
+                <TouchableOpacity key={service._id} activeOpacity={0.9} style={styles.serviceCard}>
+                  {service.thumbnailImage ? (
+                    <Image source={{ uri: service.thumbnailImage }} style={styles.serviceCardImage} />
+                  ) : (
+                    <View style={styles.serviceCardImage}>
+                      <Wrench size={28} color="#2563eb" />
                     </View>
-                  </View>
-                  <Text style={styles.serviceCardDescription}>{service.description ?? 'Premium vehicle service designed for your needs.'}</Text>
-                  <View style={styles.serviceStatsRow}>
-                    <Text style={styles.servicePrice}>{formatCurrency(service.price)}</Text>
-                    <Text style={styles.serviceTime}>45 min</Text>
-                  </View>
-                  <View style={styles.serviceFooter}>
-                    <Text style={styles.serviceMeta}>Doorstep pickup available</Text>
+                  )}
+                  <View style={styles.serviceCardContent}>
+                    <View style={styles.serviceCardHeaderRow}>
+                      <Text style={styles.serviceCardTitle}>{service.name}</Text>
+                      <View style={styles.ratingChip}>
+                        <Star size={12} color="#f59e0b" fill="#f59e0b" />
+                        <Text style={styles.ratingText}>{service.rating ?? '4.8'}</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.serviceCardDescription}>{service.description ?? 'Premium vehicle service designed for your needs.'}</Text>
+                    <View style={styles.serviceStatsRow}>
+                      <Text style={styles.servicePrice}>{formatCurrency(service.price)}</Text>
+                      <Text style={styles.serviceTime}>45 min</Text>
+                    </View>
                     <TouchableOpacity style={styles.bookNowButton} activeOpacity={0.85}>
                       <Text style={styles.bookNowText}>Book Now</Text>
                     </TouchableOpacity>
                   </View>
-                </View>
-              </TouchableOpacity>
-            ))
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           ) : (
             <View style={styles.emptyStateCard}>
               <Text style={styles.emptyStateTitle}>No services match your search</Text>
@@ -332,48 +393,62 @@ const HomeDashboard = () => {
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Special Offers</Text>
-            <Text style={styles.sectionAction}>View all</Text>
+            <Text style={styles.sectionTitle}>Special Offer</Text>
+            <Text style={styles.sectionAction}>Claim now</Text>
           </View>
           <View style={styles.offerCard}>
             <View style={styles.offerGlow} />
             <Text style={styles.offerTag}>Limited this week</Text>
             <Text style={styles.offerTitle}>Free pickup and 10% off full service</Text>
             <Text style={styles.offerText}>Enjoy premium care with transparent pricing and quick turnaround.</Text>
+            <TouchableOpacity style={styles.offerButton} activeOpacity={0.85}>
+              <Text style={styles.offerButtonText}>Claim Offer</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Popular Spare Parts</Text>
+            <Text style={styles.sectionTitle}>Spare Parts</Text>
             <Text style={styles.sectionAction}>See parts</Text>
           </View>
-          {popularParts.map((part) => (
-            <View key={part.name} style={styles.partCard}>
-              <View style={styles.partIconWrap}>
-                <Wrench size={18} color="#2563eb" />
-              </View>
-              <View style={styles.partBody}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.partsScroll}>
+            {popularParts.map((part) => (
+              <View key={part.name} style={styles.partCard}>
+                <View style={styles.partImageWrap}>
+                  <Text style={styles.partIcon}>{part.icon}</Text>
+                </View>
                 <Text style={styles.partName}>{part.name}</Text>
                 <Text style={styles.partBrand}>{part.brand}</Text>
-                <Text style={styles.partMeta}>{part.stock}</Text>
-              </View>
-              <View style={styles.partRight}>
                 <Text style={styles.partPrice}>{formatCurrency(part.price)}</Text>
-                <TouchableOpacity style={styles.partButton} activeOpacity={0.85}>
-                  <Text style={styles.partButtonText}>View</Text>
-                </TouchableOpacity>
+                <View style={styles.partMetaRow}>
+                  <Text style={styles.partMeta}>{part.stock}</Text>
+                  <TouchableOpacity style={styles.partButton} activeOpacity={0.85}>
+                    <Text style={styles.partButtonText}>View</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          ))}
+            ))}
+          </ScrollView>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Customer Reviews</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Customer Reviews</Text>
+            <Text style={styles.sectionAction}>Trusted</Text>
+          </View>
           {reviewCards.map((review) => (
             <View key={review.author} style={styles.reviewCard}>
               <View style={styles.reviewHeader}>
-                <Text style={styles.reviewAuthor}>{review.author}</Text>
+                <View style={styles.reviewAuthorWrap}>
+                  <View style={styles.reviewAvatar}>
+                    <Text style={styles.reviewAvatarText}>{review.avatar}</Text>
+                  </View>
+                  <View>
+                    <Text style={styles.reviewAuthor}>{review.author}</Text>
+                    <Text style={styles.reviewDate}>{review.date}</Text>
+                  </View>
+                </View>
                 <View style={styles.ratingChip}>
                   <Star size={12} color="#f59e0b" fill="#f59e0b" />
                   <Text style={styles.ratingText}>{review.rating.toFixed(1)}</Text>
@@ -386,13 +461,24 @@ const HomeDashboard = () => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Contact Support</Text>
-          <View style={styles.supportCard}>
-            <Text style={styles.supportTitle}>Need help with a booking?</Text>
-            <Text style={styles.supportText}>Our support team can help with scheduling, payments, and service updates.</Text>
-            <TouchableOpacity style={styles.supportButton} activeOpacity={0.85}>
-              <Text style={styles.supportButtonText}>Talk to support</Text>
-            </TouchableOpacity>
+          <View style={styles.emergencyCard}>
+            <View style={styles.emergencyHeader}>
+              <View>
+                <Text style={styles.emergencyTitle}>Emergency Assistance</Text>
+                <Text style={styles.emergencyText}>Roadside help whenever you need it.</Text>
+              </View>
+              <View style={styles.emergencyBadge}>
+                <Text style={styles.emergencyBadgeText}>24/7</Text>
+              </View>
+            </View>
+            <View style={styles.emergencyActions}>
+              <TouchableOpacity style={styles.callButton} activeOpacity={0.85}>
+                <Text style={styles.callButtonText}>Call Now</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.whatsappButton} activeOpacity={0.85}>
+                <Text style={styles.whatsappButtonText}>WhatsApp</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -578,6 +664,21 @@ const styles = StyleSheet.create({
     color: '#1d4ed8',
     fontWeight: '800',
   },
+  heroGlow: {
+    position: 'absolute',
+    top: -24,
+    right: -24,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+  },
+  heroVisual: {
+    width: 112,
+    height: 112,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   heroImagePlaceholder: {
     width: 104,
     height: 104,
@@ -590,6 +691,23 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: '900',
     fontSize: 16,
+  },
+  paginationRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  paginationDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#cbd5e1',
+    marginHorizontal: 4,
+  },
+  paginationDotActive: {
+    width: 24,
+    backgroundColor: '#2563eb',
   },
   section: {
     marginBottom: 22,
@@ -671,7 +789,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 12 },
     elevation: 8,
   },
-  vehicleImage: {
+  vehicleImageWrap: {
     width: 96,
     height: 96,
     borderRadius: 22,
@@ -679,6 +797,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
+  },
+  vehicleImageBadge: {
+    width: 72,
+    height: 72,
+    borderRadius: 20,
+    backgroundColor: '#ffffff',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   vehicleImageLabel: {
     color: '#1d4ed8',
@@ -699,6 +825,19 @@ const styles = StyleSheet.create({
     color: '#64748b',
     fontSize: 13,
     marginBottom: 4,
+  },
+  vehicleMetaChip: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#eff6ff',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginBottom: 8,
+  },
+  vehicleMetaChipText: {
+    color: '#2563eb',
+    fontSize: 12,
+    fontWeight: '800',
   },
   quickBookButton: {
     marginTop: 8,
@@ -747,20 +886,33 @@ const styles = StyleSheet.create({
   categoryScroll: {
     paddingVertical: 8,
   },
-  categoryChip: {
+  categoryCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
     marginRight: 12,
     alignItems: 'center',
-    minWidth: 110,
+    minWidth: 92,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
+  },
+  categoryIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: '#eff6ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
   },
   categoryIcon: {
     fontSize: 18,
-    marginBottom: 8,
   },
   categoryLabel: {
     color: '#0f172a',
@@ -768,12 +920,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: 'center',
   },
+  serviceScroll: {
+    paddingVertical: 4,
+  },
   serviceCard: {
+    width: 280,
     backgroundColor: '#ffffff',
     borderRadius: 24,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    marginBottom: 16,
+    marginRight: 14,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOpacity: 0.04,
@@ -919,6 +1075,18 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative',
   },
+  offerButton: {
+    marginTop: 16,
+    alignSelf: 'flex-start',
+    backgroundColor: '#2563eb',
+    borderRadius: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  offerButtonText: {
+    color: '#ffffff',
+    fontWeight: '800',
+  },
   offerGlow: {
     position: 'absolute',
     top: -20,
@@ -992,27 +1160,29 @@ const styles = StyleSheet.create({
     color: '#64748b',
     lineHeight: 22,
   },
+  partsScroll: {
+    paddingVertical: 4,
+  },
   partCard: {
+    width: 220,
     backgroundColor: '#ffffff',
     borderRadius: 20,
     borderWidth: 1,
     borderColor: '#e2e8f0',
     padding: 14,
-    marginBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
+    marginRight: 12,
   },
-  partIconWrap: {
+  partImageWrap: {
     width: 44,
     height: 44,
     borderRadius: 14,
     backgroundColor: '#eff6ff',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginBottom: 10,
   },
-  partBody: {
-    flex: 1,
+  partIcon: {
+    fontSize: 18,
   },
   partName: {
     fontSize: 15,
@@ -1028,15 +1198,17 @@ const styles = StyleSheet.create({
     color: '#2563eb',
     fontSize: 12,
     fontWeight: '700',
-    marginTop: 4,
   },
-  partRight: {
-    alignItems: 'flex-end',
+  partMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
   },
   partPrice: {
     color: '#0f172a',
     fontWeight: '900',
-    marginBottom: 8,
+    marginTop: 8,
   },
   partButton: {
     backgroundColor: '#eff6ff',
@@ -1088,10 +1260,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
+  reviewAuthorWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  reviewAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#eff6ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  reviewAvatarText: {
+    color: '#2563eb',
+    fontWeight: '900',
+  },
   reviewAuthor: {
     color: '#2563eb',
     fontWeight: '800',
-    marginBottom: 8,
+    marginBottom: 2,
+  },
+  reviewDate: {
+    color: '#64748b',
+    fontSize: 12,
   },
   reviewTitle: {
     fontSize: 16,
@@ -1108,32 +1301,61 @@ const styles = StyleSheet.create({
     color: '#0f172a',
     fontWeight: '800',
   },
-  supportCard: {
+  emergencyCard: {
     backgroundColor: '#eff6ff',
     borderRadius: 24,
     padding: 18,
     borderWidth: 1,
     borderColor: '#bfdbfe',
   },
-  supportTitle: {
-    color: '#0f172a',
-    fontSize: 17,
-    fontWeight: '900',
-    marginBottom: 8,
-  },
-  supportText: {
-    color: '#475569',
-    lineHeight: 20,
+  emergencyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 14,
   },
-  supportButton: {
+  emergencyText: {
+    color: '#475569',
+    lineHeight: 20,
+    marginTop: 6,
+  },
+  emergencyBadge: {
+    backgroundColor: '#2563eb',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  emergencyBadgeText: {
+    color: '#ffffff',
+    fontWeight: '900',
+    fontSize: 12,
+  },
+  emergencyActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  callButton: {
+    flex: 1,
     backgroundColor: '#2563eb',
     borderRadius: 16,
     paddingVertical: 12,
     alignItems: 'center',
   },
-  supportButtonText: {
+  callButtonText: {
     color: '#ffffff',
+    fontWeight: '800',
+  },
+  whatsappButton: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+  },
+  whatsappButtonText: {
+    color: '#2563eb',
     fontWeight: '800',
   },
   emergencyButton: {
