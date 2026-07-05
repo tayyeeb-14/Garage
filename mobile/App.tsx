@@ -67,17 +67,20 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    console.log('Logout pressed');
+    console.log('App: logout start');
     const tokensBeforeLogout = await getAuthTokens();
-    console.log('Tokens before logout', tokensBeforeLogout);
+    console.log('App: tokens before logout', tokensBeforeLogout);
+    console.log('App: calling clearAuthState');
     await clearAuthState();
+    console.log('App: clearAuthState finished');
     const tokensAfterLogout = await getAuthTokens();
-    console.log('Tokens after logout', tokensAfterLogout);
+    console.log('App: tokens after logout', tokensAfterLogout);
     setActiveTab('home');
     setAuthStatus('unauthenticated');
     setIsAuthenticated(false);
     setAuthScreenKey((value) => value + 1);
-    console.log('Auth state updated', { authStatus: 'unauthenticated', isAuthenticated: false });
+    setShowSplash(false);
+    console.log('App: auth state updated', { authStatus: 'unauthenticated', isAuthenticated: false });
   };
 
   if (showSplash || authStatus === 'checking') {

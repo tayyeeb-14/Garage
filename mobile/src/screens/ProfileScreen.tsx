@@ -1,6 +1,8 @@
 import React from 'react';
-import { Alert, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Alert, Platform, ScrollView, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { BookOpen, ChevronRight, Headphones, MapPin, ShieldCheck, Sparkles, UserRound, Wallet } from 'lucide-react-native';
 import { Profile } from '../services/dashboardService';
+import { clearAuthState } from '../services/authService';
 
 interface ProfileScreenProps {
   profile?: Profile | null;
@@ -10,45 +12,89 @@ interface ProfileScreenProps {
 const ProfileScreen = ({ profile, onLogout }: ProfileScreenProps) => {
   const firstName = profile?.fullName?.split(' ')[0] ?? 'Customer';
 
-  const handleLogout = () => {
-    console.log('Logout button pressed');
+  const performLogout = async () => {
+    console.log('ProfileScreen: confirmation accepted');
+    console.log('ProfileScreen: calling clearAuthState');
+    await clearAuthState();
+    console.log('ProfileScreen: clearAuthState finished');
+    console.log('ProfileScreen: calling App logout handler');
+    if (onLogout) {
+      await onLogout();
+    }
+  };
+
+  const handleLogout = async () => {
+    console.log('ProfileScreen: logout button pressed');
+
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('Are you sure you want to logout?');
+      console.log('ProfileScreen: confirmation dialog result', confirmed);
+      if (confirmed) {
+        await performLogout();
+      }
+      return;
+    }
+
     Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
+      { text: 'Cancel', style: 'cancel', onPress: () => console.log('ProfileScreen: confirmation cancelled') },
       {
         text: 'Logout',
         style: 'destructive',
-        onPress: () => {
-          if (onLogout) {
-            void onLogout();
-          }
+        onPress: async () => {
+          await performLogout();
         },
       },
     ]);
   };
 
+  const menuItems = [
+    { title: 'My Profile', icon: <UserRound size={18} color="#2563eb" /> },
+    { title: 'Booking History', icon: <BookOpen size={18} color="#2563eb" /> },
+    { title: 'Saved Addresses', icon: <MapPin size={18} color="#2563eb" /> },
+    { title: 'Favourite Services', icon: <Sparkles size={18} color="#2563eb" /> },
+    { title: 'Support', icon: <Headphones size={18} color="#2563eb" /> },
+    { title: 'Privacy Policy', icon: <ShieldCheck size={18} color="#2563eb" /> },
+  ];
+
   return (
     <View style={styles.container}>
-      <View style={styles.profileHeader}>
-        <View style={styles.avatar}>{profile?.fullName ? <Text style={styles.avatarText}>{profile.fullName[0].toUpperCase()}</Text> : <Text style={styles.avatarText}>M</Text>}</View>
-        <View style={styles.profileInfo}>
-          <Text style={styles.name}>{profile?.fullName ?? 'M Enterprises Customer'}</Text>
-          <Text style={styles.email}>{profile?.email ?? 'profile@example.com'}</Text>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+        <View style={styles.profileHeader}>
+          <View style={styles.avatar}>{profile?.fullName ? <Text style={styles.avatarText}>{profile.fullName[0].toUpperCase()}</Text> : <Text style={styles.avatarText}>M</Text>}</View>
+          <View style={styles.profileInfo}>
+            <Text style={styles.name}>{profile?.fullName ?? 'M Enterprises Customer'}</Text>
+            <Text style={styles.email}>{profile?.email ?? 'profile@example.com'}</Text>
+            <View style={styles.membershipChip}>
+              <Wallet size={14} color="#2563eb" />
+              <Text style={styles.membershipText}>Premium Member</Text>
+            </View>
+          </View>
         </View>
-      </View>
 
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Membership</Text>
-        <Text style={styles.sectionText}>Your account is ready to book services and manage vehicles.</Text>
-      </View>
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>My Account</Text>
+          <Text style={styles.sectionText}>Your account is ready to book services, track progress, and manage vehicles.</Text>
+        </View>
 
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Support</Text>
-        <Text style={styles.sectionText}>For help with bookings or billing, reach out to support from the web portal.</Text>
-      </View>
+        {menuItems.map((item) => (
+          <TouchableOpacity key={item.title} style={styles.menuItem} activeOpacity={0.9}>
+            <View style={styles.menuLeft}>
+              {item.icon}
+              <Text style={styles.menuTitle}>{item.title}</Text>
+            </View>
+            <ChevronRight size={18} color="#94a3b8" />
+          </TouchableOpacity>
+        ))}
 
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutText}>Logout</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          accessibilityLabel="Logout"
+          testID="logout-button"
+          style={styles.logoutButton}
+          onPress={handleLogout}
+        >
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
+      </ScrollView>
     </View>
   );
 };
@@ -57,9 +103,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
+  },
+  content: {
     paddingTop: 24,
     paddingHorizontal: 16,
-    paddingBottom: 120,
+    paddingBottom: 140,
   },
   profileHeader: {
     flexDirection: 'row',
@@ -100,6 +148,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e2e8f0',
     marginBottom: 14,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 6,
   },
   sectionTitle: {
     fontSize: 16,
@@ -110,6 +163,43 @@ const styles = StyleSheet.create({
   sectionText: {
     color: '#64748b',
     lineHeight: 22,
+  },
+  membershipChip: {
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    gap: 6,
+  },
+  membershipText: {
+    color: '#2563eb',
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 10,
+  },
+  menuLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  menuTitle: {
+    color: '#0f172a',
+    fontWeight: '800',
   },
   logoutButton: {
     marginTop: 18,

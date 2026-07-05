@@ -129,10 +129,8 @@ export const clearAuthTokens = async () => {
 
 export const clearAuthState = async () => {
   console.log('clearAuthState:start', { keys: Object.values(AUTH_STORAGE_KEYS) });
-  const storageKeys = [TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY];
-  for (const key of storageKeys) {
-    await safeDeleteItem(key);
-  }
+  await clearAuthTokens();
+  await safeDeleteItem(USER_KEY);
   console.log('clearAuthState:end', { keys: Object.values(AUTH_STORAGE_KEYS) });
 };
 

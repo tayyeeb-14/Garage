@@ -6,7 +6,6 @@
     "platforms": ["ios", "android", "web"],
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
-    "entryPoint": "./index.js"
+    "userInterfaceStyle": "light"
   }
 }

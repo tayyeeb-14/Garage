@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Bell, BookOpen, Home, Package, UserRound } from 'lucide-react-native';
 
 export type TabKey = 'home' | 'services' | 'bookings' | 'notifications' | 'profile';
 
@@ -8,25 +9,26 @@ interface BottomTabBarProps {
   onChangeTab: (tab: TabKey) => void;
 }
 
-const tabs: Array<{ key: TabKey; label: string; icon: string }> = [
-  { key: 'home', label: 'Home', icon: '🏠' },
-  { key: 'services', label: 'Services', icon: '🛠️' },
-  { key: 'bookings', label: 'Bookings', icon: '📅' },
-  { key: 'notifications', label: 'Alerts', icon: '🔔' },
-  { key: 'profile', label: 'Profile', icon: '👤' },
+const tabs: Array<{ key: TabKey; label: string; icon: React.ReactNode }> = [
+  { key: 'home', label: 'Home', icon: <Home size={18} /> },
+  { key: 'bookings', label: 'Bookings', icon: <BookOpen size={18} /> },
+  { key: 'services', label: 'Parts', icon: <Package size={18} /> },
+  { key: 'notifications', label: 'Notifications', icon: <Bell size={18} /> },
+  { key: 'profile', label: 'Profile', icon: <UserRound size={18} /> },
 ];
 
 const BottomTabBar = ({ activeTab, onChangeTab }: BottomTabBarProps) => (
   <View style={styles.navContainer}>
     {tabs.map((tab) => {
       const isActive = activeTab === tab.key;
+      const iconColor = isActive ? '#0f172a' : '#94a3b8';
       return (
         <Pressable
           key={tab.key}
           onPress={() => onChangeTab(tab.key)}
           style={({ pressed }) => [styles.tabButton, pressed && styles.tabButtonPressed]}
         >
-          <Text style={[styles.tabIcon, isActive ? styles.tabIconActive : styles.tabIconInactive]}>{tab.icon}</Text>
+          <View style={styles.tabIcon}>{React.isValidElement(tab.icon) ? React.cloneElement(tab.icon, { color: iconColor }) : tab.icon}</View>
           <Text style={[styles.tabLabel, isActive ? styles.tabLabelActive : styles.tabLabelInactive]}>{tab.label}</Text>
         </Pressable>
       );
@@ -66,13 +68,8 @@ const styles = StyleSheet.create({
     opacity: 0.64,
   },
   tabIcon: {
-    fontSize: 18,
-  },
-  tabIconActive: {
-    color: '#0f172a',
-  },
-  tabIconInactive: {
-    color: '#94a3b8',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tabLabel: {
     marginTop: 4,

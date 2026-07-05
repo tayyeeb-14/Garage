@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Bell, Car, ChevronRight, MapPin, Search, Sparkles, Star, Wrench } from 'lucide-react-native';
 import {
   fetchDashboardStats,
   fetchPublicServices,
@@ -16,13 +17,30 @@ import { formatCurrency } from '../utils/currency';
 
 const categories = [
   { label: 'Oil Change', icon: '🛢️' },
-  { label: 'Car Wash', icon: '🚿' },
   { label: 'Battery', icon: '🔋' },
-  { label: 'AC', icon: '❄️' },
+  { label: 'Brake', icon: '🛑' },
   { label: 'Tyres', icon: '🧱' },
   { label: 'Engine', icon: '⚙️' },
-  { label: 'Detailing', icon: '✨' },
-  { label: 'Emergency', icon: '🚨' },
+  { label: 'Wash', icon: '🚿' },
+  { label: 'Inspection', icon: '🔍' },
+  { label: 'Pickup', icon: '🚐' },
+];
+
+const banners = [
+  { title: 'Premium doorstep service', subtitle: 'Trusted garage care at your location', accent: '#2563eb' },
+  { title: 'Weekend offers', subtitle: 'Save on essential maintenance', accent: '#0f766e' },
+  { title: 'Certified technicians', subtitle: 'Fast turnaround and quality checks', accent: '#7c3aed' },
+];
+
+const popularParts = [
+  { name: 'Engine Oil', brand: 'Castrol', price: 1290, stock: 'In Stock' },
+  { name: 'Brake Pads', brand: 'Gremi', price: 2450, stock: 'Limited' },
+  { name: 'Battery', brand: 'Amaron', price: 3890, stock: 'In Stock' },
+];
+
+const reviewCards = [
+  { title: 'Fast and reliable', details: 'Booked doorstep service and it arrived right on time.', rating: 4.9, author: 'Asha' },
+  { title: 'Excellent support', details: 'Transparent pricing and very professional technicians.', rating: 5.0, author: 'Rahul' },
 ];
 
 const featureCards = [
@@ -31,8 +49,6 @@ const featureCards = [
   { title: 'Doorstep Service', description: 'Pickup and delivery for complete convenience.' },
   { title: 'Service Warranty', description: 'Work backed by trusted aftercare.' },
 ];
-
-const mockReviews = [] as Array<{ title: string; details: string; rating: number; author: string }>;
 
 const HomeDashboard = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -46,6 +62,7 @@ const HomeDashboard = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [searchText, setSearchText] = useState('');
+  const [bannerIndex, setBannerIndex] = useState(0);
 
   useEffect(() => {
     const loadContent = async () => {
@@ -106,10 +123,13 @@ const HomeDashboard = () => {
     [searchText, services]
   );
   const displayServices = searchText.trim().length ? filteredServices : topServices;
-
   const activeVehicle = vehicles[0];
-
   const heroImage = displayServices[0]?.thumbnailImage;
+
+  useEffect(() => {
+    const timer = setInterval(() => setBannerIndex((value) => (value + 1) % banners.length), 4000);
+    return () => clearInterval(timer);
+  }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -155,10 +175,14 @@ const HomeDashboard = () => {
           <View style={styles.titleBlock}>
             <Text style={styles.greeting}>{greeting}</Text>
             <Text style={styles.userName}>{profile?.fullName ?? 'Customer'}</Text>
+            <View style={styles.locationRow}>
+              <MapPin size={14} color="#64748b" />
+              <Text style={styles.locationText}>Doorstep garage service • Mumbai</Text>
+            </View>
           </View>
           <View style={styles.metaActions}>
             <TouchableOpacity style={styles.iconButton} activeOpacity={0.7}>
-              <Text style={styles.iconText}>🔔</Text>
+              <Bell size={18} color="#334155" />
               {notificationCount > 0 ? (
                 <View style={styles.notificationBadge}>
                   <Text style={styles.notificationBadgeText}>{notificationCount}</Text>
@@ -171,19 +195,25 @@ const HomeDashboard = () => {
           </View>
         </View>
 
-        <TextInput
-          placeholder="Search services..."
-          placeholderTextColor="#94a3b8"
-          style={styles.searchInput}
-          value={searchText}
-          onChangeText={setSearchText}
-        />
+        <View style={styles.searchWrap}>
+          <Search size={18} color="#64748b" />
+          <TextInput
+            placeholder="Search services..."
+            placeholderTextColor="#94a3b8"
+            style={styles.searchInput}
+            value={searchText}
+            onChangeText={setSearchText}
+          />
+        </View>
 
         <View style={styles.heroCard}>
           <View style={styles.heroText}>
-            <Text style={styles.heroBadge}>Free Pickup & Drop</Text>
-            <Text style={styles.heroTitle}>Book Professional Car Service</Text>
-            <Text style={styles.heroSubtitle}>Premium care for every ride, right at your doorstep.</Text>
+            <View style={styles.heroBadgeRow}>
+              <Sparkles size={14} color="#fff" />
+              <Text style={styles.heroBadge}>Premium doorstep care</Text>
+            </View>
+            <Text style={styles.heroTitle}>{banners[bannerIndex].title}</Text>
+            <Text style={styles.heroSubtitle}>{banners[bannerIndex].subtitle}</Text>
             <TouchableOpacity style={styles.heroButton} activeOpacity={0.8}>
               <Text style={styles.heroButtonText}>Book Now</Text>
             </TouchableOpacity>
@@ -192,7 +222,8 @@ const HomeDashboard = () => {
             <Image source={{ uri: heroImage }} style={styles.heroImage} resizeMode="cover" />
           ) : (
             <View style={styles.heroImagePlaceholder}>
-              <Text style={styles.heroImageLabel}>Car</Text>
+              <Car size={28} color="#2563eb" />
+              <Text style={styles.heroImageLabel}>Garage</Text>
             </View>
           )}
         </View>
@@ -233,18 +264,6 @@ const HomeDashboard = () => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Service Categories</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
-            {categories.map((category) => (
-              <TouchableOpacity key={category.label} style={styles.categoryChip} activeOpacity={0.8}>
-                <Text style={styles.categoryIcon}>{category.icon}</Text>
-                <Text style={styles.categoryLabel}>{category.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Popular Services</Text>
             <Text style={styles.sectionAction}>See all</Text>
@@ -255,29 +274,35 @@ const HomeDashboard = () => {
             ))
           ) : displayServices.length > 0 ? (
             displayServices.map((service) => (
-              <View key={service._id} style={styles.serviceCard}>
+              <TouchableOpacity key={service._id} activeOpacity={0.9} style={styles.serviceCard}>
                 {service.thumbnailImage ? (
                   <Image source={{ uri: service.thumbnailImage }} style={styles.serviceCardImage} />
                 ) : (
                   <View style={styles.serviceCardImage}>
-                    <Text style={styles.serviceCardImageLabel}>Service</Text>
+                    <Wrench size={28} color="#2563eb" />
                   </View>
                 )}
                 <View style={styles.serviceCardContent}>
-                  <Text style={styles.serviceCardTitle}>{service.name}</Text>
+                  <View style={styles.serviceCardHeaderRow}>
+                    <Text style={styles.serviceCardTitle}>{service.name}</Text>
+                    <View style={styles.ratingChip}>
+                      <Star size={12} color="#f59e0b" fill="#f59e0b" />
+                      <Text style={styles.ratingText}>{service.rating ?? '4.8'}</Text>
+                    </View>
+                  </View>
                   <Text style={styles.serviceCardDescription}>{service.description ?? 'Premium vehicle service designed for your needs.'}</Text>
                   <View style={styles.serviceStatsRow}>
                     <Text style={styles.servicePrice}>{formatCurrency(service.price)}</Text>
                     <Text style={styles.serviceTime}>45 min</Text>
                   </View>
                   <View style={styles.serviceFooter}>
-                    <Text style={styles.serviceRating}>⭐ {service.rating ?? 4.8}</Text>
+                    <Text style={styles.serviceMeta}>Doorstep pickup available</Text>
                     <TouchableOpacity style={styles.bookNowButton} activeOpacity={0.85}>
                       <Text style={styles.bookNowText}>Book Now</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))
           ) : (
             <View style={styles.emptyStateCard}>
@@ -306,14 +331,68 @@ const HomeDashboard = () => {
         ) : null}
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Why Choose M Enterprises</Text>
-          <View style={styles.featureGrid}>
-            {featureCards.map((item) => (
-              <View key={item.title} style={styles.featureCard}>
-                <Text style={styles.featureTitle}>{item.title}</Text>
-                <Text style={styles.featureText}>{item.description}</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Special Offers</Text>
+            <Text style={styles.sectionAction}>View all</Text>
+          </View>
+          <View style={styles.offerCard}>
+            <View style={styles.offerGlow} />
+            <Text style={styles.offerTag}>Limited this week</Text>
+            <Text style={styles.offerTitle}>Free pickup and 10% off full service</Text>
+            <Text style={styles.offerText}>Enjoy premium care with transparent pricing and quick turnaround.</Text>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Popular Spare Parts</Text>
+            <Text style={styles.sectionAction}>See parts</Text>
+          </View>
+          {popularParts.map((part) => (
+            <View key={part.name} style={styles.partCard}>
+              <View style={styles.partIconWrap}>
+                <Wrench size={18} color="#2563eb" />
               </View>
-            ))}
+              <View style={styles.partBody}>
+                <Text style={styles.partName}>{part.name}</Text>
+                <Text style={styles.partBrand}>{part.brand}</Text>
+                <Text style={styles.partMeta}>{part.stock}</Text>
+              </View>
+              <View style={styles.partRight}>
+                <Text style={styles.partPrice}>{formatCurrency(part.price)}</Text>
+                <TouchableOpacity style={styles.partButton} activeOpacity={0.85}>
+                  <Text style={styles.partButtonText}>View</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Customer Reviews</Text>
+          {reviewCards.map((review) => (
+            <View key={review.author} style={styles.reviewCard}>
+              <View style={styles.reviewHeader}>
+                <Text style={styles.reviewAuthor}>{review.author}</Text>
+                <View style={styles.ratingChip}>
+                  <Star size={12} color="#f59e0b" fill="#f59e0b" />
+                  <Text style={styles.ratingText}>{review.rating.toFixed(1)}</Text>
+                </View>
+              </View>
+              <Text style={styles.reviewTitle}>{review.title}</Text>
+              <Text style={styles.reviewText}>{review.details}</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Contact Support</Text>
+          <View style={styles.supportCard}>
+            <Text style={styles.supportTitle}>Need help with a booking?</Text>
+            <Text style={styles.supportText}>Our support team can help with scheduling, payments, and service updates.</Text>
+            <TouchableOpacity style={styles.supportButton} activeOpacity={0.85}>
+              <Text style={styles.supportButtonText}>Talk to support</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -342,24 +421,6 @@ const HomeDashboard = () => {
           )}
         </View>
 
-        <View style={styles.section}> 
-          <Text style={styles.sectionTitle}>Customer Reviews</Text>
-          {mockReviews.length > 0 ? (
-            mockReviews.map((review) => (
-              <View key={review.title} style={styles.reviewCard}>
-                <Text style={styles.reviewAuthor}>{review.author}</Text>
-                <Text style={styles.reviewTitle}>{review.title}</Text>
-                <Text style={styles.reviewText}>{review.details}</Text>
-                <Text style={styles.reviewRating}>⭐ {review.rating.toFixed(1)}</Text>
-              </View>
-            ))
-          ) : (
-            <View style={styles.emptyStateCard}>
-              <Text style={styles.emptyStateTitle}>Reviews will appear here</Text>
-              <Text style={styles.emptyStateText}>Customer feedback will show once bookings are completed.</Text>
-            </View>
-          )}
-        </View>
       </ScrollView>
 
       <TouchableOpacity style={styles.emergencyButton} activeOpacity={0.85}>
@@ -406,6 +467,17 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '900',
   },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  locationText: {
+    color: '#64748b',
+    fontSize: 13,
+    marginLeft: 6,
+    fontWeight: '600',
+  },
   metaActions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -442,14 +514,20 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#2563eb',
   },
-  searchInput: {
-    marginBottom: 20,
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#ffffff',
     borderRadius: 20,
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     paddingVertical: 14,
     borderWidth: 1,
     borderColor: '#e2e8f0',
+    marginBottom: 20,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 8,
     color: '#0f172a',
     fontSize: 15,
   },
@@ -466,10 +544,15 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingRight: 14,
   },
+  heroBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
   heroBadge: {
     color: '#dbeafe',
     fontWeight: '700',
-    marginBottom: 8,
+    marginLeft: 6,
   },
   heroTitle: {
     color: '#ffffff',
@@ -712,6 +795,12 @@ const styles = StyleSheet.create({
   serviceCardContent: {
     padding: 18,
   },
+  serviceCardHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   serviceCardTitle: {
     fontSize: 18,
     fontWeight: '900',
@@ -722,6 +811,20 @@ const styles = StyleSheet.create({
     color: '#64748b',
     lineHeight: 20,
     marginBottom: 14,
+  },
+  ratingChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff7ed',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  ratingText: {
+    color: '#92400e',
+    fontWeight: '800',
+    marginLeft: 4,
+    fontSize: 12,
   },
   serviceStatsRow: {
     flexDirection: 'row',
@@ -742,6 +845,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  serviceMeta: {
+    color: '#64748b',
+    fontWeight: '700',
   },
   serviceRating: {
     color: '#0f172a',
@@ -805,6 +912,37 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: '800',
   },
+  offerCard: {
+    backgroundColor: '#111827',
+    borderRadius: 24,
+    padding: 20,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  offerGlow: {
+    position: 'absolute',
+    top: -20,
+    right: -20,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(37, 99, 235, 0.25)',
+  },
+  offerTag: {
+    color: '#bfdbfe',
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  offerTitle: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: '900',
+    marginBottom: 8,
+  },
+  offerText: {
+    color: '#dbeafe',
+    lineHeight: 20,
+  },
   skeletonOrderCard: {
     height: 100,
     backgroundColor: '#e2e8f0',
@@ -854,6 +992,63 @@ const styles = StyleSheet.create({
     color: '#64748b',
     lineHeight: 22,
   },
+  partCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    padding: 14,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  partIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: '#eff6ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  partBody: {
+    flex: 1,
+  },
+  partName: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#0f172a',
+  },
+  partBrand: {
+    color: '#64748b',
+    fontSize: 13,
+    marginTop: 2,
+  },
+  partMeta: {
+    color: '#2563eb',
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  partRight: {
+    alignItems: 'flex-end',
+  },
+  partPrice: {
+    color: '#0f172a',
+    fontWeight: '900',
+    marginBottom: 8,
+  },
+  partButton: {
+    backgroundColor: '#eff6ff',
+    borderRadius: 999,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  partButtonText: {
+    color: '#2563eb',
+    fontWeight: '700',
+    fontSize: 12,
+  },
   featureGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -887,6 +1082,12 @@ const styles = StyleSheet.create({
     padding: 18,
     marginBottom: 14,
   },
+  reviewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   reviewAuthor: {
     color: '#2563eb',
     fontWeight: '800',
@@ -905,6 +1106,34 @@ const styles = StyleSheet.create({
   },
   reviewRating: {
     color: '#0f172a',
+    fontWeight: '800',
+  },
+  supportCard: {
+    backgroundColor: '#eff6ff',
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+  },
+  supportTitle: {
+    color: '#0f172a',
+    fontSize: 17,
+    fontWeight: '900',
+    marginBottom: 8,
+  },
+  supportText: {
+    color: '#475569',
+    lineHeight: 20,
+    marginBottom: 14,
+  },
+  supportButton: {
+    backgroundColor: '#2563eb',
+    borderRadius: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  supportButtonText: {
+    color: '#ffffff',
     fontWeight: '800',
   },
   emergencyButton: {
