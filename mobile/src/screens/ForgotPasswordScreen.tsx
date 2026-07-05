@@ -27,7 +27,9 @@ const ForgotPasswordScreen = ({ onBackToLogin }: ForgotPasswordScreenProps) => {
 
     setLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise<void>((resolve) => {
+        setTimeout(() => resolve(), 1000);
+      });
       setMessage('If this email is registered, a reset link will be sent shortly.');
     } catch {
       setError('Unable to send reset link. Please try again later.');

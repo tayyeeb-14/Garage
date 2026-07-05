@@ -12,6 +12,11 @@ const REFRESH_TOKEN_KEY = AUTH_STORAGE_KEYS.refreshToken;
 const USER_KEY = AUTH_STORAGE_KEYS.user;
 const isWeb = Platform.OS === 'web';
 
+const getWebStorage = () => {
+  const storage = (globalThis as typeof globalThis & { localStorage?: Storage }).localStorage;
+  return typeof storage?.getItem === 'function' ? storage : null;
+};
+
 export interface AuthUser {
   id: string;
   fullName?: string;
@@ -22,7 +27,7 @@ export interface AuthUser {
 const safeGetItem = async (key: string) => {
   if (isWeb) {
     try {
-      return window.localStorage.getItem(key);
+      return getWebStorage()?.getItem(key) ?? null;
     } catch {
       return null;
     }
@@ -33,7 +38,7 @@ const safeGetItem = async (key: string) => {
 const safeSetItem = async (key: string, value: string) => {
   if (isWeb) {
     try {
-      window.localStorage.setItem(key, value);
+      getWebStorage()?.setItem(key, value);
       return;
     } catch {
       return;
@@ -45,7 +50,7 @@ const safeSetItem = async (key: string, value: string) => {
 const safeDeleteItem = async (key: string) => {
   if (isWeb) {
     try {
-      window.localStorage.removeItem(key);
+      getWebStorage()?.removeItem(key);
       return;
     } catch {
       return;

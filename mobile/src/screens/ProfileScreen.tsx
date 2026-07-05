@@ -4,6 +4,11 @@ import { BookOpen, ChevronRight, Headphones, MapPin, ShieldCheck, Sparkles, User
 import { Profile } from '../services/dashboardService';
 import { clearAuthState } from '../services/authService';
 
+const confirmAction = (message: string) => {
+  const maybeConfirm = (globalThis as typeof globalThis & { confirm?: (message?: string) => boolean }).confirm;
+  return typeof maybeConfirm === 'function' ? maybeConfirm(message) : false;
+};
+
 interface ProfileScreenProps {
   profile?: Profile | null;
   onLogout?: () => Promise<void> | void;
@@ -27,7 +32,7 @@ const ProfileScreen = ({ profile, onLogout }: ProfileScreenProps) => {
     console.log('ProfileScreen: logout button pressed');
 
     if (Platform.OS === 'web') {
-      const confirmed = window.confirm('Are you sure you want to logout?');
+      const confirmed = confirmAction('Are you sure you want to logout?');
       console.log('ProfileScreen: confirmation dialog result', confirmed);
       if (confirmed) {
         await performLogout();
