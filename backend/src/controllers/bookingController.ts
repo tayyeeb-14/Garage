@@ -1,12 +1,18 @@
 import { NextFunction, Request, Response } from 'express';
 import { BookingService } from '../services/bookingService.js';
+import { AuthenticatedRequest } from '../middleware/authMiddleware.js';
 
 export class BookingController {
   constructor(private readonly bookingService: BookingService) {}
 
   createBooking = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const booking = await this.bookingService.createBooking(req.body);
+      const authReq = req as AuthenticatedRequest;
+      const payload = { ...req.body } as Record<string, unknown>;
+      if (authReq.user?.role === 'customer') {
+        payload.customer = authReq.user.sub;
+      }
+      const booking = await this.bookingService.createBooking(payload);
       res.status(201).json({ success: true, data: booking });
     } catch (error) {
       next(error);
@@ -68,7 +74,11 @@ export class BookingController {
 
   getCustomerBookings = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const customerId = Array.isArray(req.params.customerId) ? req.params.customerId[0] : req.params.customerId;
+      if (authReq.user?.role === 'customer' && authReq.user.sub !== customerId) {
+        return res.status(403).json({ success: false, message: 'Forbidden' });
+      }
       const bookings = await this.bookingService.getBookingsForCustomer(customerId);
       res.json({ success: true, data: bookings });
     } catch (error) {

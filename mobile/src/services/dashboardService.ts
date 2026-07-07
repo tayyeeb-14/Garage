@@ -70,6 +70,24 @@ export interface DashboardBooking {
   services?: Array<{ name?: string }>;
 }
 
+export interface CustomerBooking {
+  _id: string;
+  bookingId: string;
+  status: string;
+  bookingDate: string;
+  preferredTime: string;
+  pickupRequired: boolean;
+  address: string;
+  notes?: string;
+  vehicle?: {
+    _id?: string;
+    plateNumber?: string;
+    make?: string;
+    modelName?: string;
+  };
+  services?: Array<{ _id?: string; name?: string; price?: number }>;
+}
+
 export interface DashboardStats {
   customers: number;
   services: number;
@@ -164,5 +182,25 @@ export const fetchDashboardStats = async (): Promise<DashboardStats | null> => {
     return payload.data ?? null;
   } catch {
     return null;
+  }
+};
+
+export const fetchCustomerBookings = async (customerId: string): Promise<CustomerBooking[]> => {
+  try {
+    const authHeaders = await buildAuthHeaders();
+    const response = await fetch(`${API_BASE}/bookings/customer/${customerId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders,
+      },
+    });
+    if (!response.ok) {
+      return [];
+    }
+    const payload = await response.json().catch(() => ({}));
+    return payload.data ?? [];
+  } catch {
+    return [];
   }
 };
