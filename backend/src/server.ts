@@ -23,19 +23,26 @@ dotenv.config();
 
 const app = express();
 const port = Number(process.env.PORT) || 5000;
+const isDevelopment = (process.env.NODE_ENV ?? 'development') === 'development';
+const rateLimitConfig = isDevelopment
+  ? {
+      windowMs: 15 * 60 * 1000,
+      max: 2000,
+      standardHeaders: true,
+      legacyHeaders: false,
+    }
+  : {
+      windowMs: 15 * 60 * 1000,
+      max: 100,
+      standardHeaders: true,
+      legacyHeaders: false,
+    };
 
 app.use(helmet());
 app.use(cors({ origin: '*', credentials: false }));
 app.use(express.json());
 app.use(morgan('dev'));
-app.use(
-  rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100,
-    standardHeaders: true,
-    legacyHeaders: false,
-  })
-);
+app.use(rateLimit(rateLimitConfig));
 
 app.use('/api', healthRoutes);
 app.use('/api/auth', authRoutes);
