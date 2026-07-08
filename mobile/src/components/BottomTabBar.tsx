@@ -1,9 +1,9 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Bell, BookOpen, Home, UserRound, Wrench } from 'lucide-react-native';
+import { Home, Package, UserRound, Wrench } from 'lucide-react-native';
 import { colors, iconStroke, radius, shadow, spacing } from '../theme/tokens';
 
-export type TabKey = 'home' | 'services' | 'bookings' | 'notifications' | 'profile';
+export type TabKey = 'home' | 'services' | 'parts' | 'notifications' | 'profile';
 
 interface BottomTabBarProps {
   activeTab: TabKey;
@@ -12,9 +12,8 @@ interface BottomTabBarProps {
 
 const tabs: Array<{ key: TabKey; label: string; Icon: typeof Home }> = [
   { key: 'home', label: 'Home', Icon: Home },
-  { key: 'bookings', label: 'Bookings', Icon: BookOpen },
-  { key: 'services', label: 'Garage', Icon: Wrench },
-  { key: 'notifications', label: 'Notifications', Icon: Bell },
+  { key: 'parts', label: 'Parts', Icon: Package },
+  { key: 'services', label: 'Services', Icon: Wrench },
   { key: 'profile', label: 'Profile', Icon: UserRound },
 ];
 

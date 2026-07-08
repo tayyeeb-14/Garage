@@ -14,6 +14,9 @@ export const authErrorHandler = (err: unknown, _req: Request, res: Response, _ne
     if (err.message === 'Email already registered') {
       return sendError(res, 'Email already registered', 409);
     }
+    if (err.message === 'SKU already exists') {
+      return sendError(res, 'SKU already exists', 409);
+    }
     if (err.message === 'Invalid token type' || err.message === 'Invalid or expired token') {
       return sendError(res, err.message, 401);
     }

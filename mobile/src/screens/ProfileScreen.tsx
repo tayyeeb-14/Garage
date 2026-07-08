@@ -1,6 +1,7 @@
 import React from 'react';
 import { Alert, Platform, ScrollView, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { BookOpen, ChevronRight, Headphones, MapPin, ShieldCheck, Sparkles, UserRound, Wallet } from 'lucide-react-native';
+import BookingHistoryScreen from '../booking/BookingHistoryScreen';
 import { Profile } from '../services/dashboardService';
 import { clearAuthState } from '../services/authService';
 
@@ -11,10 +12,12 @@ const confirmAction = (message: string) => {
 
 interface ProfileScreenProps {
   profile?: Profile | null;
+  showMyBookings?: boolean;
+  onShowMyBookings?: (show: boolean) => void;
   onLogout?: () => Promise<void> | void;
 }
 
-const ProfileScreen = ({ profile, onLogout }: ProfileScreenProps) => {
+const ProfileScreen = ({ profile, showMyBookings, onShowMyBookings, onLogout }: ProfileScreenProps) => {
   const firstName = profile?.fullName?.split(' ')[0] ?? 'Customer';
 
   const performLogout = async () => {
@@ -54,12 +57,23 @@ const ProfileScreen = ({ profile, onLogout }: ProfileScreenProps) => {
 
   const menuItems = [
     { title: 'My Profile', icon: <UserRound size={18} color="#2563eb" /> },
-    { title: 'Booking History', icon: <BookOpen size={18} color="#2563eb" /> },
+    { title: 'My Bookings', icon: <BookOpen size={18} color="#2563eb" />, action: () => onShowMyBookings?.(true) },
     { title: 'Saved Addresses', icon: <MapPin size={18} color="#2563eb" /> },
     { title: 'Favourite Services', icon: <Sparkles size={18} color="#2563eb" /> },
     { title: 'Support', icon: <Headphones size={18} color="#2563eb" /> },
     { title: 'Privacy Policy', icon: <ShieldCheck size={18} color="#2563eb" /> },
   ];
+
+  if (showMyBookings) {
+    return (
+      <View style={styles.container}>
+        <TouchableOpacity style={styles.backButton} onPress={() => onShowMyBookings?.(false)}>
+          <Text style={styles.backButtonText}>← Back to Profile</Text>
+        </TouchableOpacity>
+        <BookingHistoryScreen />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -82,7 +96,7 @@ const ProfileScreen = ({ profile, onLogout }: ProfileScreenProps) => {
         </View>
 
         {menuItems.map((item) => (
-          <TouchableOpacity key={item.title} style={styles.menuItem} activeOpacity={0.9}>
+          <TouchableOpacity key={item.title} style={styles.menuItem} activeOpacity={0.9} onPress={item.action}>
             <View style={styles.menuLeft}>
               {item.icon}
               <Text style={styles.menuTitle}>{item.title}</Text>
@@ -216,6 +230,17 @@ const styles = StyleSheet.create({
   logoutText: {
     color: '#ffffff',
     fontWeight: '800',
+  },
+  backButton: {
+    paddingTop: 24,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    backgroundColor: '#f8fafc',
+  },
+  backButtonText: {
+    color: '#2563eb',
+    fontWeight: '700',
+    fontSize: 15,
   },
 });
 

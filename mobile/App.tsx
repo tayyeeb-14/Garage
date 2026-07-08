@@ -7,7 +7,7 @@ import HomeDashboard from './src/screens/HomeDashboard';
 import NotificationsScreen from './src/screens/NotificationsScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import ServicesScreen from './src/services/ServiceScreen';
-import BookingHistoryScreen from './src/booking/BookingHistoryScreen';
+import PartsScreen from './src/screens/PartsScreen';
 import BottomTabBar, { TabKey } from './src/components/BottomTabBar';
 import { clearAuthState, getAuthTokens, verifyAuthToken } from './src/services/authService';
 
@@ -28,7 +28,20 @@ export default function App() {
   const [authStatus, setAuthStatus] = useState<AuthStatus>('checking');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>('home');
+  const [showMyBookings, setShowMyBookings] = useState(false);
   const [authScreenKey, setAuthScreenKey] = useState(0);
+
+  const handleChangeTab = (tab: TabKey) => {
+    setActiveTab(tab);
+    if (tab !== 'profile') {
+      setShowMyBookings(false);
+    }
+  };
+
+  const handleOpenMyBookings = () => {
+    setActiveTab('profile');
+    setShowMyBookings(true);
+  };
 
   const verifyAuth = async () => {
     console.log('Auth init start');
@@ -76,6 +89,7 @@ export default function App() {
     const tokensAfterLogout = await getAuthTokens();
     console.log('App: tokens after logout', tokensAfterLogout);
     setActiveTab('home');
+    setShowMyBookings(false);
     setAuthStatus('unauthenticated');
     setIsAuthenticated(false);
     setAuthScreenKey((value) => value + 1);
@@ -109,15 +123,19 @@ export default function App() {
       <View style={styles.contentContainer}>
         {isAuthenticated ? (
           activeTab === 'home' ? (
-            <HomeDashboard onNavigateTab={setActiveTab} />
+            <HomeDashboard onNavigateTab={handleChangeTab} onOpenMyBookings={handleOpenMyBookings} />
           ) : activeTab === 'services' ? (
             <ServicesScreen />
-          ) : activeTab === 'bookings' ? (
-            <BookingHistoryScreen />
+          ) : activeTab === 'parts' ? (
+            <PartsScreen />
           ) : activeTab === 'notifications' ? (
             <NotificationsScreen />
           ) : (
-            <ProfileScreen onLogout={handleLogout} />
+            <ProfileScreen
+              showMyBookings={showMyBookings}
+              onShowMyBookings={setShowMyBookings}
+              onLogout={handleLogout}
+            />
           )
         ) : (
           <>
@@ -126,7 +144,7 @@ export default function App() {
           </>
         )}
       </View>
-      {isAuthenticated ? <BottomTabBar activeTab={activeTab} onChangeTab={setActiveTab} /> : null}
+      {isAuthenticated ? <BottomTabBar activeTab={activeTab} onChangeTab={handleChangeTab} /> : null}
       <StatusBar style="auto" />
     </View>
   );

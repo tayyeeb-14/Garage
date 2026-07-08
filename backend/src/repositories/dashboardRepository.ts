@@ -1,15 +1,16 @@
 import { Booking } from '../models/Booking.js';
 import { Customer } from '../models/Customer.js';
+import Inventory from '../models/Inventory.js';
 import { Order } from '../models/Order.js';
-import { Product } from '../models/Product.js';
 import { Service } from '../models/Service.js';
+import { notDeletedFilter } from '../utils/inventoryFilters.js';
 
 export class DashboardRepository {
   async getStats() {
     const [customers, services, products, bookings, orders] = await Promise.all([
       Customer.countDocuments(),
       Service.countDocuments({ isActive: true }),
-      Product.countDocuments({ isActive: true }),
+      Inventory.countDocuments({ ...notDeletedFilter(), isActive: true }),
       Booking.countDocuments(),
       Order.countDocuments(),
     ]);
@@ -32,12 +33,25 @@ export class DashboardRepository {
   }
 
   async getLowStock(limit = 5) {
-    return Product.find({
-      $expr: { $lte: ['$stockQuantity', '$lowStockThreshold'] },
+    const items = await Inventory.find({
+      ...notDeletedFilter(),
+      $expr: { $lte: ['$quantity', '$minimumStock'] },
+      quantity: { $gt: 0 },
     })
-      .sort({ stockQuantity: 1 })
+      .sort({ quantity: 1 })
       .limit(limit)
       .lean();
+
+    return items.map((item) => ({
+      _id: item._id,
+      name: item.itemName,
+      sku: item.sku,
+      price: item.sellingPrice,
+      stockQuantity: item.quantity,
+      lowStockThreshold: item.minimumStock,
+      image: item.image,
+      brand: item.brand,
+    }));
   }
 
   async getTopServices(limit = 5) {

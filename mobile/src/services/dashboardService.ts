@@ -31,6 +31,30 @@ export interface DashboardProduct {
   price: number;
   stockQuantity?: number;
   lowStockThreshold?: number;
+  image?: string;
+  brand?: string;
+}
+
+export interface PublicPart {
+  _id: string;
+  inventoryId: string;
+  itemName: string;
+  sku: string;
+  category: string;
+  brand: string;
+  compatibleVehicles: string[];
+  sellingPrice: number;
+  originalPrice?: number;
+  discountPercent?: number;
+  quantity: number;
+  unit: string;
+  image?: string;
+  galleryImages?: string[];
+  shortDescription?: string;
+  fullDescription?: string;
+  description?: string;
+  status: 'In Stock' | 'Low Stock' | 'Out Of Stock';
+  isFeatured: boolean;
 }
 
 export interface DashboardOrder {
@@ -163,6 +187,27 @@ export const fetchLowStockProducts = async (): Promise<DashboardProduct[]> => {
     }
     const payload = await response.json().catch(() => ({}));
     return payload.data ?? [];
+  } catch {
+    return [];
+  }
+};
+
+export const fetchPublicParts = async (params?: Record<string, string | number | boolean>): Promise<PublicPart[]> => {
+  try {
+    const query = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== '') {
+          query.set(key, String(value));
+        }
+      });
+    }
+    const response = await fetch(`${API_BASE}/inventory/public?${query.toString()}`);
+    if (!response.ok) {
+      return [];
+    }
+    const payload = await response.json().catch(() => ({}));
+    return payload.data?.items ?? [];
   } catch {
     return [];
   }

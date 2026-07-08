@@ -1,41 +1,79 @@
-import { FilterQuery, Types } from 'mongoose';
+import { FilterQuery } from 'mongoose';
 import Inventory, { IInventory } from '../models/Inventory.js';
+import { escapeRegex } from '../utils/regexUtils.js';
+import { notDeletedFilter } from '../utils/inventoryFilters.js';
+
+const PUBLIC_FIELDS = '-purchasePrice -supplierName -supplierPhone -rackLocation -barcode -deletedAt';
+
+const computeStatus = (quantity: number, minimumStock: number): IInventory['status'] => {
+  if (quantity === 0) return 'Out Of Stock';
+  if (quantity <= minimumStock) return 'Low Stock';
+  return 'In Stock';
+};
+
+const buildSearchFilter = (search: string): FilterQuery<IInventory>['$or'] => {
+  const term = escapeRegex(search.trim());
+  return [
+    { itemName: { $regex: term, $options: 'i' } },
+    { sku: { $regex: term, $options: 'i' } },
+    { category: { $regex: term, $options: 'i' } },
+    { brand: { $regex: term, $options: 'i' } },
+    { compatibleVehicles: { $regex: term, $options: 'i' } },
+  ];
+};
 
 export class InventoryRepository {
   async create(data: Partial<IInventory>) {
-    return Inventory.create(data);
+    const quantity = data.quantity ?? 0;
+    const minimumStock = data.minimumStock ?? 5;
+    const payload = {
+      ...data,
+      status: computeStatus(quantity, minimumStock),
+    };
+    return Inventory.create(payload);
   }
 
   async findById(id: string) {
-    return Inventory.findById(id).lean();
+    return Inventory.findOne({ _id: id, ...notDeletedFilter() }).lean();
   }
 
   async findBySku(sku: string) {
-    return Inventory.findOne({ sku, deletedAt: { $exists: false } }).lean();
+    return Inventory.findOne({ sku: sku.trim(), ...notDeletedFilter() }).lean();
   }
 
   async findAll(query: Record<string, unknown>, page = 1, limit = 10) {
-    const filter: FilterQuery<IInventory> = { deletedAt: { $exists: false } };
+    const filter: FilterQuery<IInventory> = notDeletedFilter();
 
     if (query.search) {
-      filter.$or = [
-        { itemName: { $regex: query.search as string, $options: 'i' } },
-        { sku: { $regex: query.search as string, $options: 'i' } },
-        { category: { $regex: query.search as string, $options: 'i' } },
-        { brand: { $regex: query.search as string, $options: 'i' } },
-      ];
+      filter.$or = buildSearchFilter(query.search as string);
     }
 
     if (query.category) {
-      filter.category = { $regex: query.category as string, $options: 'i' };
+      filter.category = { $regex: escapeRegex(String(query.category)), $options: 'i' };
     }
 
     if (query.brand) {
-      filter.brand = { $regex: query.brand as string, $options: 'i' };
+      filter.brand = { $regex: escapeRegex(String(query.brand)), $options: 'i' };
     }
 
     if (query.status) {
-      filter.status = query.status as string;
+      filter.status = query.status as IInventory['status'];
+    }
+
+    if (query.featured === 'true') {
+      filter.isFeatured = true;
+    }
+
+    if (query.featured === 'false') {
+      filter.isFeatured = false;
+    }
+
+    if (query.active === 'true') {
+      filter.isActive = true;
+    }
+
+    if (query.active === 'false') {
+      filter.isActive = false;
     }
 
     const sort: Record<string, 1 | -1> = { createdAt: -1 };
@@ -57,21 +95,78 @@ export class InventoryRepository {
       Inventory.countDocuments(filter),
     ]);
 
-    return { items, total, page, limit, totalPages: Math.ceil(total / limit) };
+    return { items, total, page, limit, totalPages: Math.ceil(total / limit) || 1 };
+  }
+
+  async findPublic(query: Record<string, unknown>, page = 1, limit = 20) {
+    const filter: FilterQuery<IInventory> = {
+      ...notDeletedFilter(),
+      isActive: true,
+      status: { $ne: 'Out Of Stock' },
+    };
+
+    if (query.search) {
+      filter.$or = buildSearchFilter(query.search as string);
+    }
+
+    if (query.category) {
+      filter.category = { $regex: escapeRegex(String(query.category)), $options: 'i' };
+    }
+
+    if (query.featured === 'true') {
+      filter.isFeatured = true;
+    }
+
+    const sort: Record<string, 1 | -1> = { isFeatured: -1, createdAt: -1 };
+    if (query.sort === 'price-asc') sort.sellingPrice = 1;
+    if (query.sort === 'price-desc') sort.sellingPrice = -1;
+    if (query.sort === 'name-asc') sort.itemName = 1;
+    if (query.sort === 'name-desc') sort.itemName = -1;
+
+    const [items, total] = await Promise.all([
+      Inventory.find(filter)
+        .select(PUBLIC_FIELDS)
+        .sort(sort)
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean(),
+      Inventory.countDocuments(filter),
+    ]);
+
+    return { items, total, page, limit, totalPages: Math.ceil(total / limit) || 1 };
   }
 
   async update(id: string, data: Partial<IInventory>) {
-    return Inventory.findByIdAndUpdate(id, data, { new: true }).lean();
+    const existing = await Inventory.findOne({ _id: id, ...notDeletedFilter() });
+    if (!existing) return null;
+
+    const quantity = data.quantity ?? existing.quantity;
+    const minimumStock = data.minimumStock ?? existing.minimumStock;
+    const { status: _ignoredStatus, ...rest } = data;
+    const payload = {
+      ...rest,
+      status: computeStatus(quantity, minimumStock),
+    };
+
+    return Inventory.findByIdAndUpdate(id, payload, { new: true }).lean();
   }
 
   async softDelete(id: string) {
-    return Inventory.findByIdAndUpdate(id, { deletedAt: new Date() }, { new: true }).lean();
+    const existing = await Inventory.findOne({ _id: id, ...notDeletedFilter() });
+    if (!existing) return null;
+
+    return Inventory.findByIdAndUpdate(
+      id,
+      { deletedAt: new Date(), isActive: false },
+      { new: true },
+    ).lean();
   }
 
   async getLowStockItems(limit = 10) {
     return Inventory.find({
-      quantity: { $lte: 'minimumStock' },
-      deletedAt: { $exists: false },
+      ...notDeletedFilter(),
+      $expr: { $lte: ['$quantity', '$minimumStock'] },
+      quantity: { $gt: 0 },
     })
       .sort({ quantity: 1 })
       .limit(limit)
@@ -80,8 +175,8 @@ export class InventoryRepository {
 
   async getOutOfStockItems(limit = 10) {
     return Inventory.find({
+      ...notDeletedFilter(),
       quantity: { $eq: 0 },
-      deletedAt: { $exists: false },
     })
       .sort({ createdAt: -1 })
       .limit(limit)
@@ -89,34 +184,62 @@ export class InventoryRepository {
   }
 
   async updateStock(id: string, quantityChange: number) {
-    const item = await Inventory.findById(id);
+    const item = await Inventory.findOne({ _id: id, ...notDeletedFilter() });
     if (!item) return null;
 
-    const newQuantity = item.quantity + quantityChange;
-    let status: 'In Stock' | 'Low Stock' | 'Out Of Stock' = 'In Stock';
-
-    if (newQuantity === 0) {
-      status = 'Out Of Stock';
-    } else if (newQuantity <= item.minimumStock) {
-      status = 'Low Stock';
+    if (quantityChange < 0 && item.quantity < Math.abs(quantityChange)) {
+      throw new Error('Insufficient stock available');
     }
+
+    const newQuantity = Math.max(0, item.quantity + quantityChange);
+    const status = computeStatus(newQuantity, item.minimumStock);
 
     return Inventory.findByIdAndUpdate(id, { quantity: newQuantity, status }, { new: true }).lean();
   }
 
+  async setStockStatus(id: string, status: 'In Stock' | 'Out Of Stock') {
+    const item = await Inventory.findOne({ _id: id, ...notDeletedFilter() });
+    if (!item) return null;
+
+    if (status === 'Out Of Stock') {
+      return Inventory.findByIdAndUpdate(id, { quantity: 0, status: 'Out Of Stock' }, { new: true }).lean();
+    }
+
+    const quantity = item.quantity > 0 ? item.quantity : Math.max(item.minimumStock, 1);
+    const nextStatus = computeStatus(quantity, item.minimumStock);
+    return Inventory.findByIdAndUpdate(id, { quantity, status: nextStatus }, { new: true }).lean();
+  }
+
+  async getCategories() {
+    return Inventory.distinct('category', notDeletedFilter());
+  }
+
+  async getBrands() {
+    return Inventory.distinct('brand', { ...notDeletedFilter(), brand: { $nin: [null, ''] } });
+  }
+
   async getDashboardStats() {
-    const [totalItems, totalValue, lowStockCount, outOfStockCount] = await Promise.all([
-      Inventory.countDocuments({ deletedAt: { $exists: false } }),
+    const filter = notDeletedFilter();
+    const [totalItems, activeItems, categoryList, totalValue, lowStockCount, outOfStockCount] = await Promise.all([
+      Inventory.countDocuments(filter),
+      Inventory.countDocuments({ ...filter, isActive: true }),
+      Inventory.distinct('category', filter),
       Inventory.aggregate([
-        { $match: { deletedAt: { $exists: false } } },
+        { $match: filter },
         { $group: { _id: null, total: { $sum: { $multiply: ['$quantity', '$sellingPrice'] } } } },
       ]),
-      Inventory.countDocuments({ status: 'Low Stock', deletedAt: { $exists: false } }),
-      Inventory.countDocuments({ status: 'Out Of Stock', deletedAt: { $exists: false } }),
+      Inventory.countDocuments({
+        ...filter,
+        $expr: { $lte: ['$quantity', '$minimumStock'] },
+        quantity: { $gt: 0 },
+      }),
+      Inventory.countDocuments({ ...filter, status: 'Out Of Stock' }),
     ]);
 
     return {
       totalItems,
+      activeItems,
+      totalCategories: categoryList.filter(Boolean).length,
       totalValue: totalValue.length > 0 ? totalValue[0].total : 0,
       lowStockCount,
       outOfStockCount,

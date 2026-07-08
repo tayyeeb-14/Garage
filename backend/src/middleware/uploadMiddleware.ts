@@ -25,3 +25,12 @@ export const bannerImageUpload = multer({
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: imageFileFilter,
 }).single('imageFile');
+
+export const inventoryImageUpload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: imageFileFilter,
+}).fields([
+  { name: 'thumbnailImageFile', maxCount: 1 },
+  { name: 'galleryImageFiles', maxCount: 10 },
+]);

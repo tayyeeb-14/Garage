@@ -9,17 +9,12 @@ import DashboardChart from './components/DashboardChart';
 import ServicesPage from './pages/ServicesPage';
 import BookingsPage from './pages/BookingsPage';
 import OrdersPage from './pages/OrdersPage';
-import InventoryListPage from './pages/InventoryListPage';
-import InventoryDashboard from './pages/InventoryDashboard';
-import InventoryForm from './pages/InventoryForm';
-import LowStockPage from './pages/LowStockPage';
+import PartsPage from './pages/PartsPage';
 import BannerManagementPage from './pages/BannerManagementPage';
-import { InventoryItem } from './services/inventoryService';
 
 const DashboardApp = () => {
   const { stats, recentOrders, lowStock, topServices, isLoading, error } = useDashboard();
-  const [activeView, setActiveView] = useState<'dashboard' | 'services' | 'bookings' | 'orders' | 'inventory' | 'inventory-form' | 'low-stock' | 'banners'>('dashboard');
-  const [editingInventory, setEditingInventory] = useState<InventoryItem | undefined>();
+  const [activeView, setActiveView] = useState<'dashboard' | 'services' | 'bookings' | 'orders' | 'parts' | 'banners'>('dashboard');
 
 
   if (isLoading) return <LoadingState />;
@@ -37,61 +32,13 @@ const DashboardApp = () => {
     return <OrdersPage />;
   }
 
-  if (activeView === 'inventory-form') {
+  if (activeView === 'parts') {
     return (
       <>
-        <button onClick={() => { setActiveView('inventory'); setEditingInventory(undefined); }} style={{ marginBottom: '1rem', padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>
-          ← Back to Inventory
-        </button>
-        <InventoryForm
-          item={editingInventory}
-          onSave={() => {
-            setActiveView('inventory');
-            setEditingInventory(undefined);
-          }}
-          onCancel={() => {
-            setActiveView('inventory');
-            setEditingInventory(undefined);
-          }}
-        />
-      </>
-    );
-  }
-
-  if (activeView === 'inventory') {
-    return (
-      <>
-        <button onClick={() => setActiveView('dashboard')} style={{ marginBottom: '1rem', padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>
+        <button onClick={() => setActiveView('dashboard')} style={{ margin: '1rem 1rem 0', padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>
           ← Back to Dashboard
         </button>
-        <div style={{ marginBottom: '1.5rem' }}>
-          <InventoryDashboard />
-        </div>
-        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-          <button onClick={() => setActiveView('inventory-form')} style={{ padding: '0.8rem 1rem', borderRadius: '12px', border: 'none', background: '#2563eb', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>
-            + Add Item
-          </button>
-          <button onClick={() => setActiveView('low-stock')} style={{ padding: '0.8rem 1rem', borderRadius: '12px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>
-            View Alerts
-          </button>
-        </div>
-        <InventoryListPage
-          onEditClick={(item) => {
-            setEditingInventory(item);
-            setActiveView('inventory-form');
-          }}
-        />
-      </>
-    );
-  }
-
-  if (activeView === 'low-stock') {
-    return (
-      <>
-        <button onClick={() => setActiveView('inventory')} style={{ marginBottom: '1rem', padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>
-          ← Back to Inventory
-        </button>
-        <LowStockPage />
+        <PartsPage />
       </>
     );
   }
@@ -122,8 +69,8 @@ const DashboardApp = () => {
             <button onClick={() => setActiveView('orders')} style={{ padding: '0.8rem 1rem', borderRadius: '12px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>
               Manage Orders
             </button>
-            <button onClick={() => setActiveView('inventory')} style={{ padding: '0.8rem 1rem', borderRadius: '12px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>
-              Manage Inventory
+            <button onClick={() => setActiveView('parts')} style={{ padding: '0.8rem 1rem', borderRadius: '12px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>
+              Manage Parts
             </button>
             <button onClick={() => setActiveView('services')} style={{ padding: '0.8rem 1rem', borderRadius: '12px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>
               Manage Services

@@ -46,19 +46,19 @@ import SectionHeader from '../components/ui/SectionHeader';
 import { colors, iconSize, iconStroke, radius, shadow, spacing, typography } from '../theme/tokens';
 import {
   DashboardOrder,
-  DashboardProduct,
   DashboardStats,
   fetchDashboardStats,
-  fetchLowStockProducts,
   fetchPublicServices,
   fetchRecentOrders,
   fetchTopServices,
   fetchUserProfile,
   fetchVehicles,
   Profile,
+  PublicPart,
   PublicService,
   Vehicle,
 } from '../services/dashboardService';
+import { getPublicPartsCached } from '../hooks/usePublicParts';
 import { formatCurrency } from '../utils/currency';
 import { fetchActiveBanners, MobileBanner } from '../services/bannerService';
 
@@ -86,20 +86,21 @@ const whyChooseUs = [
 
 const quickActions = [
   { label: 'Book Service', icon: Wrench, tab: 'services' as TabKey },
-  { label: 'Bookings', icon: BookOpen, tab: 'bookings' as TabKey },
-  { label: 'Track Service', icon: Navigation, tab: 'bookings' as TabKey },
+  { label: 'Bookings', icon: BookOpen, openBookings: true },
+  { label: 'Track Service', icon: Navigation, openBookings: true },
   { label: 'Offers', icon: Gift, tab: null },
 ];
 
 type HomeDashboardProps = {
   onNavigateTab?: (tab: TabKey) => void;
+  onOpenMyBookings?: () => void;
 };
 
-const HomeDashboard = ({ onNavigateTab }: HomeDashboardProps) => {
+const HomeDashboard = ({ onNavigateTab, onOpenMyBookings }: HomeDashboardProps) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [services, setServices] = useState<PublicService[]>([]);
   const [topServices, setTopServices] = useState<PublicService[]>([]);
-  const [spareParts, setSpareParts] = useState<DashboardProduct[]>([]);
+  const [spareParts, setSpareParts] = useState<PublicPart[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [recentOrders, setRecentOrders] = useState<DashboardOrder[]>([]);
   const [currentBooking, setCurrentBooking] = useState<DashboardOrder | null>(null);
@@ -114,16 +115,18 @@ const HomeDashboard = ({ onNavigateTab }: HomeDashboardProps) => {
   const scrollRef = useRef<ScrollView>(null);
   const offerSectionY = useRef(0);
 
-  const loadDashboard = async () => {
+  const loadDashboard = async (isRefresh = false) => {
     setError('');
     const loadStartTime = Date.now();
     try {
-      setLoading(true);
+      if (!isRefresh) {
+        setLoading(true);
+      }
       const [userProfile, serviceList, topServiceList, productList, vehicleList, orderList, dashboardStats, activeBanners] = await Promise.all([
         fetchUserProfile(),
         fetchPublicServices(),
         fetchTopServices(),
-        fetchLowStockProducts(),
+        getPublicPartsCached({ limit: 8 }),
         fetchVehicles(),
         fetchRecentOrders(),
         fetchDashboardStats(),
@@ -211,7 +214,7 @@ const HomeDashboard = ({ onNavigateTab }: HomeDashboardProps) => {
 
   const onRefresh = () => {
     setRefreshing(true);
-    void loadDashboard();
+    void loadDashboard(true);
   };
 
   const scrollToOffers = () => {
@@ -323,7 +326,8 @@ const HomeDashboard = ({ onNavigateTab }: HomeDashboardProps) => {
                   key={action.label}
                   style={({ pressed }) => [styles.quickActionCard, pressed && styles.pressed]}
                   onPress={() => {
-                    if (action.tab) onNavigateTab?.(action.tab);
+                    if (action.openBookings) onOpenMyBookings?.();
+                    else if (action.tab) onNavigateTab?.(action.tab);
                     else scrollToOffers();
                   }}
                 >
@@ -547,7 +551,7 @@ const HomeDashboard = ({ onNavigateTab }: HomeDashboardProps) => {
 
         {/* 10. Spare Parts */}
         <View style={styles.section}>
-          <SectionHeader title="Spare Parts" actionLabel="See all" onActionPress={() => onNavigateTab?.('services')} />
+          <SectionHeader title="Spare Parts" actionLabel="See all" onActionPress={() => onNavigateTab?.('parts')} />
           {loading ? (
             <ActivityIndicator color={colors.primaryBright} style={{ marginVertical: spacing.md }} />
           ) : spareParts.length > 0 ? (
@@ -555,16 +559,32 @@ const HomeDashboard = ({ onNavigateTab }: HomeDashboardProps) => {
               {spareParts.map((part) => (
                 <View key={part._id} style={styles.partCard}>
                   <View style={styles.partImageWrap}>
-                    <Wrench size={28} color={colors.primaryBright} strokeWidth={iconStroke} />
+                    {part.image ? (
+                      <Image source={{ uri: part.image }} style={styles.partImage} />
+                    ) : (
+                      <Wrench size={28} color={colors.primaryBright} strokeWidth={iconStroke} />
+                    )}
+                    {part.isFeatured ? (
+                      <View style={styles.partFeaturedBadge}>
+                        <Text style={styles.partFeaturedText}>Featured</Text>
+                      </View>
+                    ) : null}
+                    {part.status === 'Low Stock' ? (
+                      <View style={styles.partLowStockBadge}>
+                        <Text style={styles.partLowStockText}>Low Stock</Text>
+                      </View>
+                    ) : null}
                   </View>
-                  <Text style={styles.partBrand}>{part.sku ? `SKU ${part.sku}` : 'Genuine part'}</Text>
-                  <Text style={styles.partName} numberOfLines={2}>{part.name}</Text>
-                  <Text style={styles.partPrice}>{formatCurrency(part.price)}</Text>
+                  <Text style={styles.partBrand}>{part.brand || part.category || 'Genuine part'}</Text>
+                  <Text style={styles.partName} numberOfLines={2}>{part.itemName}</Text>
+                  <Text style={styles.partPrice}>{formatCurrency(part.sellingPrice)}</Text>
+                  {part.originalPrice && part.originalPrice > part.sellingPrice ? (
+                    <Text style={styles.partOldPrice}>{formatCurrency(part.originalPrice)}</Text>
+                  ) : null}
                   <View style={styles.partFooter}>
-                    <Text style={styles.partStock}>
-                      {part.stockQuantity !== undefined ? `${part.stockQuantity} in stock` : 'Available'}
+                    <Text style={[styles.partStock, part.status === 'Low Stock' && styles.partStockLow]}>
+                      {part.status === 'Low Stock' ? `Only ${part.quantity} left` : `${part.quantity} in stock`}
                     </Text>
-                    <PremiumButton label="Add" compact variant="secondary" style={styles.partAddBtn} />
                   </View>
                 </View>
               ))}
@@ -675,7 +695,7 @@ const HomeDashboard = ({ onNavigateTab }: HomeDashboardProps) => {
 
         {/* 14. Recent Orders */}
         <View style={styles.section}>
-          <SectionHeader title="Recent Orders" actionLabel="View all" onActionPress={() => onNavigateTab?.('bookings')} />
+          <SectionHeader title="Recent Orders" actionLabel="View all" onActionPress={() => onOpenMyBookings?.()} />
           {loading ? (
             Array.from({ length: 2 }).map((_, index) => (
               <View key={index} style={styles.skeletonOrderCard} />
@@ -711,7 +731,7 @@ const HomeDashboard = ({ onNavigateTab }: HomeDashboardProps) => {
                     label="Track"
                     compact
                     variant="secondary"
-                    onPress={() => onNavigateTab?.('bookings')}
+                    onPress={() => onOpenMyBookings?.()}
                     style={styles.trackBtn}
                   />
                 </View>
@@ -1311,6 +1331,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.sm,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  partImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  partFeaturedBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: colors.primaryBright,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  partFeaturedText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  partLowStockBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#fef3c7',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  partLowStockText: {
+    color: '#92400e',
+    fontSize: 10,
+    fontWeight: '800',
   },
   partBrand: {
     color: colors.textMuted,
@@ -1338,6 +1393,13 @@ const styles = StyleSheet.create({
     color: colors.primaryBright,
     fontSize: 18,
     fontWeight: '800',
+    marginBottom: 2,
+    paddingHorizontal: spacing.md,
+  },
+  partOldPrice: {
+    color: colors.textLight,
+    fontSize: 13,
+    textDecorationLine: 'line-through',
     marginBottom: spacing.sm,
     paddingHorizontal: spacing.md,
   },
@@ -1355,8 +1417,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     flex: 1,
   },
-  partAddBtn: {
-    minWidth: 72,
+  partStockLow: {
+    color: '#d97706',
   },
   featureGrid: {
     flexDirection: 'row',
