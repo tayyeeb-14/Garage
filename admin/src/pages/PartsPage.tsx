@@ -57,28 +57,34 @@ const PartsPage = () => {
     }
   }, [token]);
 
+  const loadStats = useCallback(async () => {
+    if (!token) return;
+    try {
+      const statsPayload = await inventoryService.getDashboardStats(token);
+      setStats(statsPayload);
+    } catch {
+      // Stats are non-blocking; list view remains usable.
+    }
+  }, [token]);
+
   const loadParts = useCallback(async () => {
     if (!token) return;
     try {
       setLoading(true);
       setError(null);
-      const [listPayload, statsPayload] = await Promise.all([
-        inventoryService.list(token, {
-          page,
-          limit: 10,
-          search: search.trim() || undefined,
-          category: category || undefined,
-          brand: brand || undefined,
-          status: status === 'all' ? undefined : status,
-          featured: featured === 'all' ? undefined : featured === 'yes' ? 'true' : 'false',
-          active: active === 'all' ? undefined : active === 'yes' ? 'true' : 'false',
-          sort,
-        }),
-        inventoryService.getDashboardStats(token),
-      ]);
+      const listPayload = await inventoryService.list(token, {
+        page,
+        limit: 10,
+        search: search.trim() || undefined,
+        category: category || undefined,
+        brand: brand || undefined,
+        status: status === 'all' ? undefined : status,
+        featured: featured === 'all' ? undefined : featured === 'yes' ? 'true' : 'false',
+        active: active === 'all' ? undefined : active === 'yes' ? 'true' : 'false',
+        sort,
+      });
       setParts(listPayload?.items ?? []);
       setTotalPages(listPayload?.totalPages ?? 1);
-      setStats(statsPayload);
     } catch (err) {
       if (axios.isAxiosError(err)) {
         setError(err.response?.data?.message ?? 'Unable to load parts');
@@ -92,7 +98,8 @@ const PartsPage = () => {
 
   useEffect(() => {
     void loadFilters();
-  }, [loadFilters]);
+    void loadStats();
+  }, [loadFilters, loadStats]);
 
   useEffect(() => {
     void loadParts();
@@ -122,7 +129,7 @@ const PartsPage = () => {
       await inventoryService.delete(token, deleteTarget._id);
       setToast('Part deleted successfully');
       setDeleteTarget(null);
-      await loadParts();
+      await Promise.all([loadParts(), loadStats()]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to delete part');
     } finally {
@@ -146,7 +153,7 @@ const PartsPage = () => {
       }
       setStockModal(null);
       setStockQuantity(0);
-      await loadParts();
+      await Promise.all([loadParts(), loadStats()]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to update stock');
     } finally {
@@ -161,7 +168,7 @@ const PartsPage = () => {
       await inventoryService.setStockStatus(token, stockStatusTarget.id, stockStatusTarget.status);
       setToast(stockStatusTarget.status === 'Out Of Stock' ? 'Marked out of stock' : 'Marked in stock');
       setStockStatusTarget(null);
-      await loadParts();
+      await Promise.all([loadParts(), loadStats()]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to update stock status');
     } finally {
@@ -173,7 +180,7 @@ const PartsPage = () => {
     setShowForm(false);
     setEditingPart(null);
     setToast('Part saved successfully');
-    void loadParts();
+    void Promise.all([loadParts(), loadStats()]);
   };
 
   const hasActiveFilters = Boolean(search || category || brand || status !== 'all' || featured !== 'all' || active !== 'all');

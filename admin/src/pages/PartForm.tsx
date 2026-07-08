@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { ChangeEvent, FormEvent, useEffect, useState } from 'react';
+import { ChangeEvent, FormEvent, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { inventoryService, InventoryItem, PART_CATEGORIES } from '../services/inventoryService';
 
@@ -38,14 +38,6 @@ const PartForm = ({ initialPart, onSave, onCancel }: PartFormProps) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => () => {
-    if (thumbnailFile) URL.revokeObjectURL(thumbnailPreview);
-    galleryFiles.forEach((_, index) => {
-      const preview = galleryPreviews[galleryPreviews.length - galleryFiles.length + index];
-      if (preview?.startsWith('blob:')) URL.revokeObjectURL(preview);
-    });
-  }, [galleryFiles, galleryPreviews, thumbnailFile, thumbnailPreview]);
-
   const validateImageFile = (file: File) => {
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
       return 'Only JPG, PNG, and WebP images are allowed.';
@@ -66,6 +58,9 @@ const PartForm = ({ initialPart, onSave, onCancel }: PartFormProps) => {
     }
     setError(null);
     setRemoveThumbnail(false);
+    if (thumbnailPreview.startsWith('blob:')) {
+      URL.revokeObjectURL(thumbnailPreview);
+    }
     setThumbnailFile(file);
     setThumbnailPreview(URL.createObjectURL(file));
   };
@@ -86,6 +81,10 @@ const PartForm = ({ initialPart, onSave, onCancel }: PartFormProps) => {
   };
 
   const removeGalleryPreview = (index: number) => {
+    const preview = galleryPreviews[index];
+    if (preview?.startsWith('blob:')) {
+      URL.revokeObjectURL(preview);
+    }
     setGalleryPreviews((current) => current.filter((_, itemIndex) => itemIndex !== index));
     setGalleryFiles((current) => current.filter((_, itemIndex) => itemIndex !== index));
   };

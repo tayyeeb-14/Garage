@@ -181,6 +181,8 @@ const inventorySchema = new Schema<IInventory>(
 );
 
 inventorySchema.index({ itemName: 'text', sku: 'text', category: 'text', brand: 'text' });
+inventorySchema.index({ isActive: 1, status: 1, isFeatured: -1, createdAt: -1 });
+inventorySchema.index({ deletedAt: 1, sku: 1 });
 
 const Inventory = mongoose.model<IInventory>('Inventory', inventorySchema);
 

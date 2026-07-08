@@ -193,24 +193,20 @@ export const fetchLowStockProducts = async (): Promise<DashboardProduct[]> => {
 };
 
 export const fetchPublicParts = async (params?: Record<string, string | number | boolean>): Promise<PublicPart[]> => {
-  try {
-    const query = new URLSearchParams();
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== '') {
-          query.set(key, String(value));
-        }
-      });
-    }
-    const response = await fetch(`${API_BASE}/inventory/public?${query.toString()}`);
-    if (!response.ok) {
-      return [];
-    }
-    const payload = await response.json().catch(() => ({}));
-    return payload.data?.items ?? [];
-  } catch {
-    return [];
+  const query = new URLSearchParams();
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== '') {
+        query.set(key, String(value));
+      }
+    });
   }
+  const response = await fetch(`${API_BASE}/inventory/public?${query.toString()}`);
+  if (!response.ok) {
+    throw new Error('Unable to load spare parts.');
+  }
+  const payload = await response.json().catch(() => ({}));
+  return payload.data?.items ?? [];
 };
 
 export const fetchVehicles = async (): Promise<Vehicle[]> => {

@@ -119,6 +119,7 @@ const PartsScreen = () => {
       return (
         <View style={styles.emptyCard}>
           <Text style={styles.emptyTitle}>{error}</Text>
+          <Text style={styles.emptyText}>Pull down to retry.</Text>
         </View>
       );
     }

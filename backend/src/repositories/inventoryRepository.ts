@@ -22,6 +22,59 @@ const buildSearchFilter = (search: string): FilterQuery<IInventory>['$or'] => {
   ];
 };
 
+const buildListFilter = (query: Record<string, unknown>): FilterQuery<IInventory> => {
+  const andConditions: FilterQuery<IInventory>[] = [notDeletedFilter()];
+
+  if (query.search) {
+    andConditions.push({ $or: buildSearchFilter(query.search as string) });
+  }
+
+  const filter: FilterQuery<IInventory> = { $and: andConditions };
+
+  if (query.category) {
+    filter.category = { $regex: escapeRegex(String(query.category)), $options: 'i' };
+  }
+
+  if (query.brand) {
+    filter.brand = { $regex: escapeRegex(String(query.brand)), $options: 'i' };
+  }
+
+  if (query.status) {
+    filter.status = query.status as IInventory['status'];
+  }
+
+  if (query.featured === 'true') {
+    filter.isFeatured = true;
+  }
+
+  if (query.featured === 'false') {
+    filter.isFeatured = false;
+  }
+
+  if (query.active === 'true') {
+    filter.isActive = true;
+  }
+
+  if (query.active === 'false') {
+    filter.isActive = false;
+  }
+
+  return filter;
+};
+
+const buildSort = (query: Record<string, unknown>, defaults: Record<string, 1 | -1>) => {
+  const sort: Record<string, 1 | -1> = { ...defaults };
+  if (query.sort === 'price-asc') sort.sellingPrice = 1;
+  if (query.sort === 'price-desc') sort.sellingPrice = -1;
+  if (query.sort === 'name-asc') sort.itemName = 1;
+  if (query.sort === 'name-desc') sort.itemName = -1;
+  if (query.sort === 'quantity-asc') sort.quantity = 1;
+  if (query.sort === 'quantity-desc') sort.quantity = -1;
+  if (query.sort === 'date-asc') sort.createdAt = 1;
+  if (query.sort === 'date-desc') sort.createdAt = -1;
+  return sort;
+};
+
 export class InventoryRepository {
   async create(data: Partial<IInventory>) {
     const quantity = data.quantity ?? 0;
@@ -42,49 +95,8 @@ export class InventoryRepository {
   }
 
   async findAll(query: Record<string, unknown>, page = 1, limit = 10) {
-    const filter: FilterQuery<IInventory> = notDeletedFilter();
-
-    if (query.search) {
-      filter.$or = buildSearchFilter(query.search as string);
-    }
-
-    if (query.category) {
-      filter.category = { $regex: escapeRegex(String(query.category)), $options: 'i' };
-    }
-
-    if (query.brand) {
-      filter.brand = { $regex: escapeRegex(String(query.brand)), $options: 'i' };
-    }
-
-    if (query.status) {
-      filter.status = query.status as IInventory['status'];
-    }
-
-    if (query.featured === 'true') {
-      filter.isFeatured = true;
-    }
-
-    if (query.featured === 'false') {
-      filter.isFeatured = false;
-    }
-
-    if (query.active === 'true') {
-      filter.isActive = true;
-    }
-
-    if (query.active === 'false') {
-      filter.isActive = false;
-    }
-
-    const sort: Record<string, 1 | -1> = { createdAt: -1 };
-    if (query.sort === 'price-asc') sort.sellingPrice = 1;
-    if (query.sort === 'price-desc') sort.sellingPrice = -1;
-    if (query.sort === 'name-asc') sort.itemName = 1;
-    if (query.sort === 'name-desc') sort.itemName = -1;
-    if (query.sort === 'quantity-asc') sort.quantity = 1;
-    if (query.sort === 'quantity-desc') sort.quantity = -1;
-    if (query.sort === 'date-asc') sort.createdAt = 1;
-    if (query.sort === 'date-desc') sort.createdAt = -1;
+    const filter = buildListFilter(query);
+    const sort = buildSort(query, { createdAt: -1 });
 
     const [items, total] = await Promise.all([
       Inventory.find(filter)
@@ -99,29 +111,11 @@ export class InventoryRepository {
   }
 
   async findPublic(query: Record<string, unknown>, page = 1, limit = 20) {
-    const filter: FilterQuery<IInventory> = {
-      ...notDeletedFilter(),
-      isActive: true,
-      status: { $ne: 'Out Of Stock' },
-    };
+    const filter = buildListFilter(query);
+    filter.isActive = true;
+    filter.status = { $ne: 'Out Of Stock' };
 
-    if (query.search) {
-      filter.$or = buildSearchFilter(query.search as string);
-    }
-
-    if (query.category) {
-      filter.category = { $regex: escapeRegex(String(query.category)), $options: 'i' };
-    }
-
-    if (query.featured === 'true') {
-      filter.isFeatured = true;
-    }
-
-    const sort: Record<string, 1 | -1> = { isFeatured: -1, createdAt: -1 };
-    if (query.sort === 'price-asc') sort.sellingPrice = 1;
-    if (query.sort === 'price-desc') sort.sellingPrice = -1;
-    if (query.sort === 'name-asc') sort.itemName = 1;
-    if (query.sort === 'name-desc') sort.itemName = -1;
+    const sort = buildSort(query, { isFeatured: -1, createdAt: -1 });
 
     const [items, total] = await Promise.all([
       Inventory.find(filter)
