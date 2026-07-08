@@ -29,12 +29,16 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [showMyBookings, setShowMyBookings] = useState(false);
+  const [servicesIntent, setServicesIntent] = useState<{ serviceId?: string } | null>(null);
   const [authScreenKey, setAuthScreenKey] = useState(0);
 
   const handleChangeTab = (tab: TabKey) => {
     setActiveTab(tab);
     if (tab !== 'profile') {
       setShowMyBookings(false);
+    }
+    if (tab !== 'services') {
+      setServicesIntent(null);
     }
   };
 
@@ -123,9 +127,20 @@ export default function App() {
       <View style={styles.contentContainer}>
         {isAuthenticated ? (
           activeTab === 'home' ? (
-            <HomeDashboard onNavigateTab={handleChangeTab} onOpenMyBookings={handleOpenMyBookings} />
+            <HomeDashboard
+              onNavigateTab={handleChangeTab}
+              onOpenMyBookings={handleOpenMyBookings}
+              onOpenServiceDetail={(serviceId) => {
+                setServicesIntent({ serviceId });
+                setActiveTab('services');
+              }}
+            />
           ) : activeTab === 'services' ? (
-            <ServicesScreen />
+            <ServicesScreen
+              initialServiceId={servicesIntent?.serviceId}
+              onOpenMyBookings={handleOpenMyBookings}
+              onNavigateHome={() => handleChangeTab('home')}
+            />
           ) : activeTab === 'parts' ? (
             <PartsScreen />
           ) : activeTab === 'notifications' ? (
@@ -134,6 +149,11 @@ export default function App() {
             <ProfileScreen
               showMyBookings={showMyBookings}
               onShowMyBookings={setShowMyBookings}
+              onBookService={() => {
+                setShowMyBookings(false);
+                setServicesIntent(null);
+                setActiveTab('services');
+              }}
               onLogout={handleLogout}
             />
           )

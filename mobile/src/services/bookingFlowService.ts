@@ -1,5 +1,5 @@
 import { fetchWithAuth } from './authService';
-import { PublicService, Vehicle } from './dashboardService';
+import { fetchPublicServices, PublicService, Vehicle } from './dashboardService';
 
 const API_BASE = 'http://localhost:5000/api';
 
@@ -41,10 +41,7 @@ const parsePayload = async (response: Response) => {
 };
 
 export const fetchServicesForDetails = async (): Promise<PublicService[]> => {
-  const response = await fetch(`${API_BASE}/services/public`);
-  if (!response.ok) return [];
-  const payload = await parsePayload(response);
-  return payload.data ?? [];
+  return fetchPublicServices({ limit: 100, sort: 'featured' });
 };
 
 export const fetchVehiclesForBooking = async (): Promise<Vehicle[]> => {

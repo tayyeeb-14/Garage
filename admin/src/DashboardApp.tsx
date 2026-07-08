@@ -21,7 +21,14 @@ const DashboardApp = () => {
   if (error) return <ErrorState message={error} />;
 
   if (activeView === 'services') {
-    return <ServicesPage />;
+    return (
+      <>
+        <button onClick={() => setActiveView('dashboard')} style={{ margin: '1rem 1rem 0', padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>
+          ← Back to Dashboard
+        </button>
+        <ServicesPage />
+      </>
+    );
   }
 
   if (activeView === 'bookings') {

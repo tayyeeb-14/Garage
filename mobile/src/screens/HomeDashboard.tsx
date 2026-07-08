@@ -94,9 +94,10 @@ const quickActions = [
 type HomeDashboardProps = {
   onNavigateTab?: (tab: TabKey) => void;
   onOpenMyBookings?: () => void;
+  onOpenServiceDetail?: (serviceId: string) => void;
 };
 
-const HomeDashboard = ({ onNavigateTab, onOpenMyBookings }: HomeDashboardProps) => {
+const HomeDashboard = ({ onNavigateTab, onOpenMyBookings, onOpenServiceDetail }: HomeDashboardProps) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [services, setServices] = useState<PublicService[]>([]);
   const [topServices, setTopServices] = useState<PublicService[]>([]);
@@ -201,7 +202,7 @@ const HomeDashboard = ({ onNavigateTab, onOpenMyBookings }: HomeDashboardProps) 
   const popularServices = useMemo(() => {
     if (searchText.trim().length) return filteredServices;
     if (topServices.length) return topServices;
-    return services.filter((item) => item.popular || item.featured).slice(0, 6);
+    return services.filter((item) => item.isFeatured || item.popular || item.featured).slice(0, 6);
   }, [filteredServices, searchText, services, topServices]);
 
   const heroFallbackImage = popularServices[0]?.thumbnailImage;
@@ -470,7 +471,11 @@ const HomeDashboard = ({ onNavigateTab, onOpenMyBookings }: HomeDashboardProps) 
           ) : popularServices.length > 0 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
               {popularServices.map((service) => (
-                <View key={service._id} style={styles.serviceCard}>
+                <Pressable
+                  key={service._id}
+                  style={({ pressed }) => [styles.serviceCard, pressed && styles.pressed]}
+                  onPress={() => onOpenServiceDetail?.(service._id) ?? onNavigateTab?.('services')}
+                >
                   <View style={styles.serviceImageWrap}>
                     {service.thumbnailImage ? (
                       <Image source={{ uri: service.thumbnailImage }} style={styles.serviceImage} />
@@ -502,11 +507,11 @@ const HomeDashboard = ({ onNavigateTab, onOpenMyBookings }: HomeDashboardProps) 
                     <PremiumButton
                       label="Book Now"
                       compact
-                      onPress={() => onNavigateTab?.('services')}
+                      onPress={() => onOpenServiceDetail?.(service._id) ?? onNavigateTab?.('services')}
                       style={styles.serviceCta}
                     />
                   </View>
-                </View>
+                </Pressable>
               ))}
             </ScrollView>
           ) : (

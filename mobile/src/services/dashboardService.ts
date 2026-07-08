@@ -9,18 +9,33 @@ export interface Vehicle {
   lastServiceDate?: string;
 }
 
+export interface ServiceFaqItem {
+  question: string;
+  answer: string;
+}
+
 export interface PublicService {
   _id: string;
   name: string;
   description?: string;
+  shortDescription?: string;
+  fullDescription?: string;
   price: number;
+  originalPrice?: number;
+  discountPercent?: number;
   thumbnailImage?: string;
+  galleryImages?: string[];
   category?: string;
+  isFeatured?: boolean;
   featured?: boolean;
   popular?: boolean;
   rating?: number;
   bookings?: number;
   estimatedDuration?: number;
+  includes?: string[];
+  faq?: ServiceFaqItem[];
+  compatibleVehicles?: string[];
+  relatedServices?: PublicService[];
 }
 
 export interface DashboardProduct {
@@ -153,16 +168,32 @@ export const fetchUserProfile = async (): Promise<Profile | null> => {
   }
 };
 
-export const fetchPublicServices = async (): Promise<PublicService[]> => {
+export const fetchPublicServices = async (params?: Record<string, string | number | boolean>): Promise<PublicService[]> => {
   try {
-    const response = await fetch(`${API_BASE}/services/public`);
-    if (!response.ok) {
-      return [];
+    const query = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== '') query.set(key, String(value));
+      });
     }
+    const response = await fetch(`${API_BASE}/services/public?${query.toString()}`);
+    if (!response.ok) throw new Error('Unable to load services.');
     const payload = await response.json().catch(() => ({}));
-    return payload.data ?? [];
+    return payload.data?.items ?? payload.data ?? [];
+  } catch (error) {
+    if (error instanceof Error) throw error;
+    throw new Error('Unable to load services.');
+  }
+};
+
+export const fetchPublicServiceById = async (id: string): Promise<PublicService | null> => {
+  try {
+    const response = await fetch(`${API_BASE}/services/public/${id}`);
+    if (!response.ok) return null;
+    const payload = await response.json().catch(() => ({}));
+    return payload.data ?? null;
   } catch {
-    return [];
+    return null;
   }
 };
 

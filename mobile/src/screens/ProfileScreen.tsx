@@ -14,10 +14,11 @@ interface ProfileScreenProps {
   profile?: Profile | null;
   showMyBookings?: boolean;
   onShowMyBookings?: (show: boolean) => void;
+  onBookService?: () => void;
   onLogout?: () => Promise<void> | void;
 }
 
-const ProfileScreen = ({ profile, showMyBookings, onShowMyBookings, onLogout }: ProfileScreenProps) => {
+const ProfileScreen = ({ profile, showMyBookings, onShowMyBookings, onBookService, onLogout }: ProfileScreenProps) => {
   const firstName = profile?.fullName?.split(' ')[0] ?? 'Customer';
 
   const performLogout = async () => {
@@ -70,7 +71,7 @@ const ProfileScreen = ({ profile, showMyBookings, onShowMyBookings, onLogout }: 
         <TouchableOpacity style={styles.backButton} onPress={() => onShowMyBookings?.(false)}>
           <Text style={styles.backButtonText}>← Back to Profile</Text>
         </TouchableOpacity>
-        <BookingHistoryScreen />
+        <BookingHistoryScreen onBookService={onBookService} />
       </View>
     );
   }

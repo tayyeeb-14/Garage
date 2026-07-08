@@ -34,7 +34,7 @@ const statusColor = (status?: string) => {
   return { bg: '#fff7ed', text: '#b45309' };
 };
 
-const BookingHistoryScreen = () => {
+const BookingHistoryScreen = ({ onBookService }: { onBookService?: () => void }) => {
   const [orders, setOrders] = useState<CustomerBooking[]>([]);
   const [services, setServices] = useState<PublicService[]>([]);
   const [loading, setLoading] = useState(true);
@@ -198,7 +198,7 @@ const BookingHistoryScreen = () => {
           <Text style={styles.emptyIcon}>🛠️</Text>
           <Text style={styles.emptyTitle}>No bookings found</Text>
           <Text style={styles.emptyText}>You have no bookings in this section yet. Start a new service booking to see it here.</Text>
-          <TouchableOpacity style={styles.primaryAction} onPress={() => Alert.alert('Book Now', 'Go to the Parts tab and choose a service to book.')}>
+          <TouchableOpacity style={styles.primaryAction} onPress={() => onBookService?.()}>
             <Text style={styles.primaryActionText}>Book Now</Text>
           </TouchableOpacity>
         </View>
