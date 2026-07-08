@@ -109,7 +109,7 @@ export default function App() {
       <View style={styles.contentContainer}>
         {isAuthenticated ? (
           activeTab === 'home' ? (
-            <HomeDashboard />
+            <HomeDashboard onNavigateTab={setActiveTab} />
           ) : activeTab === 'services' ? (
             <ServicesScreen />
           ) : activeTab === 'bookings' ? (
@@ -135,7 +135,7 @@ export default function App() {
 const styles = StyleSheet.create({
   appContainer: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#FFFFFF',
   },
   contentContainer: {
     flex: 1,

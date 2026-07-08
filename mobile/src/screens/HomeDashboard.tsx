@@ -1,61 +1,105 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Linking, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { Bell, Car, ChevronRight, MapPin, Search, Sparkles, Star, Wrench } from 'lucide-react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
+  Image,
+  Linking,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import {
+  BadgeCheck,
+  Battery,
+  Bell,
+  BookOpen,
+  Car,
+  Circle,
+  Clock3,
+  Cog,
+  Droplets,
+  Gauge,
+  Gift,
+  LayoutGrid,
+  MapPin,
+  Navigation,
+  Recycle,
+  Search,
+  Shield,
+  ShieldCheck,
+  SlidersHorizontal,
+  Sparkles,
+  Star,
+  Tag,
+  Truck,
+  Wrench,
+  CircleStop,
+} from 'lucide-react-native';
+import { TabKey } from '../components/BottomTabBar';
+import HeroBannerCarousel from '../components/home/HeroBannerCarousel';
+import IconCircle from '../components/ui/IconCircle';
+import PremiumButton from '../components/ui/PremiumButton';
+import SectionHeader from '../components/ui/SectionHeader';
+import { colors, iconSize, iconStroke, radius, shadow, spacing, typography } from '../theme/tokens';
+import {
+  DashboardOrder,
+  DashboardProduct,
+  DashboardStats,
   fetchDashboardStats,
+  fetchLowStockProducts,
   fetchPublicServices,
   fetchRecentOrders,
+  fetchTopServices,
   fetchUserProfile,
   fetchVehicles,
-  DashboardOrder,
-  DashboardStats,
-  PublicService,
   Profile,
+  PublicService,
   Vehicle,
 } from '../services/dashboardService';
 import { formatCurrency } from '../utils/currency';
 import { fetchActiveBanners, MobileBanner } from '../services/bannerService';
 
-const categories = [
-  { label: 'Full Service', icon: '🧰' },
-  { label: 'Oil Change', icon: '🛢️' },
-  { label: 'Brake', icon: '🛑' },
-  { label: 'Battery', icon: '🔋' },
-  { label: 'Engine', icon: '⚙️' },
-  { label: 'Tyre', icon: '🛞' },
-  { label: 'Washing', icon: '🚿' },
-  { label: 'Pickup', icon: '🚐' },
-  { label: 'Scrap', icon: '♻️' },
+const categoryItems = [
+  { label: 'Full Service', icon: Wrench },
+  { label: 'Oil Change', icon: Droplets },
+  { label: 'Brake', icon: CircleStop },
+  { label: 'Battery', icon: Battery },
+  { label: 'Engine', icon: Cog },
+  { label: 'Tyre', icon: Circle },
+  { label: 'Washing', icon: Sparkles },
+  { label: 'Pickup', icon: Truck },
+  { label: 'Scrap', icon: Recycle },
+  { label: 'View All', icon: LayoutGrid },
 ];
 
-const fallbackBanner = {
-  title: 'Premium doorstep service',
-  subtitle: 'Trusted garage care at your location',
-  accent: '#2563eb',
-  badge: 'Fast response',
+const whyChooseUs = [
+  { title: 'Expert Mechanics', description: 'Certified technicians for every service.', icon: Wrench },
+  { title: 'Genuine Parts', description: 'Original components you can trust.', icon: Shield },
+  { title: 'Transparent Pricing', description: 'Clear quotes with no hidden fees.', icon: Tag },
+  { title: 'Doorstep Pickup', description: 'We collect and return your vehicle.', icon: Truck },
+  { title: 'Fast Service', description: 'Quick turnaround without compromise.', icon: Clock3 },
+  { title: 'Warranty', description: 'Work backed by reliable aftercare.', icon: ShieldCheck },
+];
+
+const quickActions = [
+  { label: 'Book Service', icon: Wrench, tab: 'services' as TabKey },
+  { label: 'Bookings', icon: BookOpen, tab: 'bookings' as TabKey },
+  { label: 'Track Service', icon: Navigation, tab: 'bookings' as TabKey },
+  { label: 'Offers', icon: Gift, tab: null },
+];
+
+type HomeDashboardProps = {
+  onNavigateTab?: (tab: TabKey) => void;
 };
 
-const popularParts = [
-  { name: 'Engine Oil', brand: 'Castrol', price: 1290, stock: 'In Stock', icon: '🛢️' },
-  { name: 'Brake Pads', brand: 'Gremi', price: 2450, stock: 'Limited', icon: '🛑' },
-  { name: 'Battery', brand: 'Amaron', price: 3890, stock: 'In Stock', icon: '🔋' },
-];
-
-const reviewCards = [
-  { title: 'Fast and reliable', details: 'Booked doorstep service and it arrived right on time.', rating: 4.9, author: 'Asha', avatar: 'A', date: '2 days ago' },
-  { title: 'Excellent support', details: 'Transparent pricing and very professional technicians.', rating: 5.0, author: 'Rahul', avatar: 'R', date: '1 week ago' },
-];
-
-const featureCards = [
-  { title: 'Certified Mechanics', description: 'Service handled by trained professionals.' },
-  { title: 'Genuine Parts', description: 'Original parts for a reliable repair.' },
-  { title: 'Doorstep Service', description: 'Pickup and delivery for complete convenience.' },
-  { title: 'Service Warranty', description: 'Work backed by trusted aftercare.' },
-];
-
-const HomeDashboard = () => {
+const HomeDashboard = ({ onNavigateTab }: HomeDashboardProps) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [services, setServices] = useState<PublicService[]>([]);
+  const [topServices, setTopServices] = useState<PublicService[]>([]);
+  const [spareParts, setSpareParts] = useState<DashboardProduct[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [recentOrders, setRecentOrders] = useState<DashboardOrder[]>([]);
   const [currentBooking, setCurrentBooking] = useState<DashboardOrder | null>(null);
@@ -67,53 +111,58 @@ const HomeDashboard = () => {
   const [searchText, setSearchText] = useState('');
   const [bannerIndex, setBannerIndex] = useState(0);
   const [banners, setBanners] = useState<MobileBanner[]>([]);
+  const scrollRef = useRef<ScrollView>(null);
+  const offerSectionY = useRef(0);
 
-  useEffect(() => {
-    const loadContent = async () => {
-      setError('');
-      const loadStartTime = Date.now();
-      try {
-        setLoading(true);
-        const [userProfile, serviceList, vehicleList, orderList, dashboardStats, activeBanners] = await Promise.all([
-          fetchUserProfile(),
-          fetchPublicServices(),
-          fetchVehicles(),
-          fetchRecentOrders(),
-          fetchDashboardStats(),
-          fetchActiveBanners(),
-        ]);
+  const loadDashboard = async () => {
+    setError('');
+    const loadStartTime = Date.now();
+    try {
+      setLoading(true);
+      const [userProfile, serviceList, topServiceList, productList, vehicleList, orderList, dashboardStats, activeBanners] = await Promise.all([
+        fetchUserProfile(),
+        fetchPublicServices(),
+        fetchTopServices(),
+        fetchLowStockProducts(),
+        fetchVehicles(),
+        fetchRecentOrders(),
+        fetchDashboardStats(),
+        fetchActiveBanners(),
+      ]);
 
-        setProfile(userProfile);
-        setServices(serviceList);
-        setVehicles(vehicleList);
-        setRecentOrders(orderList);
-        setStats(dashboardStats);
-        setBanners(activeBanners);
+      setProfile(userProfile);
+      setServices(serviceList);
+      setTopServices(topServiceList);
+      setSpareParts(productList);
+      setVehicles(vehicleList);
+      setRecentOrders(orderList);
+      setStats(dashboardStats);
+      setBanners(activeBanners);
 
-        const activeBooking = orderList.find((order) =>
-          ['pending', 'confirmed', 'in_service', 'ready_for_pickup'].includes(order.orderStatus)
-        );
-        setCurrentBooking(activeBooking ?? null);
-
-        setNotificationCount(orderList.filter((order) => !['completed', 'cancelled'].includes(order.orderStatus)).length);
-      } catch (fetchError) {
-        setError('Unable to load dashboard data. Pull to refresh or try again.');
-      } finally {
-        const elapsed = Date.now() - loadStartTime;
-        const minimumDelay = 400;
-        if (elapsed < minimumDelay) {
-          setTimeout(() => {
-            setLoading(false);
-            setRefreshing(false);
-          }, minimumDelay - elapsed);
-        } else {
+      const activeBooking = orderList.find((order) =>
+        ['pending', 'confirmed', 'in_service', 'ready_for_pickup'].includes(order.orderStatus),
+      );
+      setCurrentBooking(activeBooking ?? null);
+      setNotificationCount(orderList.filter((order) => !['completed', 'cancelled'].includes(order.orderStatus)).length);
+    } catch {
+      setError('Unable to load dashboard data. Pull to refresh or try again.');
+    } finally {
+      const elapsed = Date.now() - loadStartTime;
+      const minimumDelay = 400;
+      if (elapsed < minimumDelay) {
+        setTimeout(() => {
           setLoading(false);
           setRefreshing(false);
-        }
+        }, minimumDelay - elapsed);
+      } else {
+        setLoading(false);
+        setRefreshing(false);
       }
-    };
+    }
+  };
 
-    void loadContent();
+  useEffect(() => {
+    void loadDashboard();
   }, []);
 
   const greeting = useMemo(() => {
@@ -125,399 +174,563 @@ const HomeDashboard = () => {
 
   const activeVehicle = vehicles[0];
   const activeBanner = banners[bannerIndex] ?? null;
-  const nextServiceReminder = useMemo(() => {
-    if (!activeVehicle?.lastServiceDate) return 'Next reminder: schedule a service soon';
+  const offerBanner = banners.length > 1 ? banners[(bannerIndex + 1) % banners.length] : activeBanner;
 
+  const nextServiceDate = useMemo(() => {
+    if (!activeVehicle?.lastServiceDate) return null;
     const parsedDate = new Date(activeVehicle.lastServiceDate);
-    if (Number.isNaN(parsedDate.getTime())) return 'Next reminder: schedule a service soon';
-
+    if (Number.isNaN(parsedDate.getTime())) return null;
     const nextDate = new Date(parsedDate);
     nextDate.setMonth(nextDate.getMonth() + 6);
-    return `Next reminder: ${nextDate.toLocaleDateString()}`;
+    return nextDate;
   }, [activeVehicle]);
 
-  const topServices = useMemo(() => services.filter((item) => item.popular || item.featured).slice(0, 4), [services]);
+  const daysUntilReminder = useMemo(() => {
+    if (!nextServiceDate) return null;
+    return Math.max(0, Math.ceil((nextServiceDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+  }, [nextServiceDate]);
+
   const filteredServices = useMemo(
     () => services.filter((service) => service.name.toLowerCase().includes(searchText.toLowerCase())),
-    [searchText, services]
+    [searchText, services],
   );
-  const displayServices = searchText.trim().length ? filteredServices : topServices;
-  const heroImage = activeBanner?.imageUrl ?? displayServices[0]?.thumbnailImage;
-  const heroColor = activeBanner ? '#2563eb' : fallbackBanner.accent;
-  const heroBadge = activeBanner ? 'Live offer' : fallbackBanner.badge;
+
+  const popularServices = useMemo(() => {
+    if (searchText.trim().length) return filteredServices;
+    if (topServices.length) return topServices;
+    return services.filter((item) => item.popular || item.featured).slice(0, 6);
+  }, [filteredServices, searchText, services, topServices]);
+
+  const heroFallbackImage = popularServices[0]?.thumbnailImage;
 
   useEffect(() => {
     if (!banners.length) return undefined;
-    const timer = setInterval(() => setBannerIndex((value) => (value + 1) % banners.length), 4000);
+    const timer = setInterval(() => setBannerIndex((value) => (value + 1) % banners.length), 4500);
     return () => clearInterval(timer);
   }, [banners.length]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    setError('');
-    void (async () => {
-      try {
-        const [userProfile, serviceList, vehicleList, orderList, dashboardStats, activeBanners] = await Promise.all([
-          fetchUserProfile(),
-          fetchPublicServices(),
-          fetchVehicles(),
-          fetchRecentOrders(),
-          fetchDashboardStats(),
-          fetchActiveBanners(),
-        ]);
-
-        setProfile(userProfile);
-        setServices(serviceList);
-        setVehicles(vehicleList);
-        setRecentOrders(orderList);
-        setStats(dashboardStats);
-        setBanners(activeBanners);
-
-        const activeBooking = orderList.find((order) =>
-          ['pending', 'confirmed', 'in_service', 'ready_for_pickup'].includes(order.orderStatus)
-        );
-        setCurrentBooking(activeBooking ?? null);
-
-        setNotificationCount(orderList.filter((order) => !['completed', 'cancelled'].includes(order.orderStatus)).length);
-      } catch {
-        setError('Unable to refresh dashboard content. Try again later.');
-      } finally {
-        setRefreshing(false);
-      }
-    })();
+    void loadDashboard();
   };
+
+  const scrollToOffers = () => {
+    scrollRef.current?.scrollTo({ y: offerSectionY.current, animated: true });
+  };
+
+  const formatServiceDuration = (service: PublicService) => {
+    const minutes = service.estimatedDuration ?? 60;
+    if (minutes < 60) return `${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    const remainder = minutes % 60;
+    return remainder ? `${hours}h ${remainder}m` : `${hours}h`;
+  };
+
+  const reviewOrders = useMemo(
+    () => recentOrders.filter((order) => order.orderStatus === 'completed').slice(0, 3),
+    [recentOrders],
+  );
 
   return (
     <View style={styles.container}>
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2563eb" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primaryBright} />}
       >
-        <View style={styles.topHeader}>
-          <View style={styles.titleBlock}>
+        {error ? (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
+
+        {/* 1. Header */}
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
             <Text style={styles.greeting}>{greeting}</Text>
             <Text style={styles.userName}>{profile?.fullName ?? 'Customer'}</Text>
-            <View style={styles.locationRow}>
-              <MapPin size={14} color="#64748b" />
-              <Text style={styles.locationText}>Doorstep garage service • Mumbai</Text>
-            </View>
+            <Pressable style={styles.locationRow}>
+              <IconCircle size={28} backgroundColor={colors.secondary}>
+                <MapPin size={14} color={colors.primaryBright} strokeWidth={iconStroke} />
+              </IconCircle>
+              <View style={styles.locationTextWrap}>
+                <Text style={styles.locationLabel}>Service location</Text>
+                <Text style={styles.locationValue} numberOfLines={1}>
+                  {profile?.phone ? `Registered • ${profile.phone}` : 'Doorstep garage service'}
+                </Text>
+              </View>
+            </Pressable>
           </View>
-          <View style={styles.metaActions}>
-            <TouchableOpacity style={styles.iconButton} activeOpacity={0.7}>
-              <Bell size={18} color="#334155" />
+          <View style={styles.headerActions}>
+            <Pressable
+              style={({ pressed }) => [styles.headerIconBtn, pressed && styles.pressed]}
+              onPress={() => onNavigateTab?.('notifications')}
+            >
+              <Bell size={iconSize} color={colors.text} strokeWidth={iconStroke} />
               {notificationCount > 0 ? (
-                <View style={styles.notificationBadge}>
-                  <Text style={styles.notificationBadgeText}>{notificationCount}</Text>
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{notificationCount > 9 ? '9+' : notificationCount}</Text>
                 </View>
               ) : null}
-            </TouchableOpacity>
-            <View style={styles.avatarCircle}>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.avatar, pressed && styles.pressed]}
+              onPress={() => onNavigateTab?.('profile')}
+            >
               <Text style={styles.avatarText}>{profile?.fullName?.[0]?.toUpperCase() ?? 'M'}</Text>
-            </View>
+            </Pressable>
           </View>
         </View>
 
-        <View style={styles.searchWrap}>
-          <Search size={18} color="#64748b" />
-          <TextInput
-            placeholder="Search services..."
-            placeholderTextColor="#94a3b8"
-            style={styles.searchInput}
-            value={searchText}
-            onChangeText={setSearchText}
-          />
+        {/* 2. Search Bar */}
+        <View style={styles.searchSection}>
+          <View style={styles.searchBar}>
+            <Search size={iconSize} color={colors.textMuted} strokeWidth={iconStroke} />
+            <TextInput
+              placeholder="Search services, parts..."
+              placeholderTextColor={colors.textLight}
+              style={styles.searchInput}
+              value={searchText}
+              onChangeText={setSearchText}
+            />
+            <Pressable style={({ pressed }) => [styles.filterBtn, pressed && styles.pressed]}>
+              <SlidersHorizontal size={18} color={colors.primaryBright} strokeWidth={iconStroke} />
+            </Pressable>
+          </View>
+          <Pressable style={({ pressed }) => [styles.locationChip, pressed && styles.pressed]}>
+            <MapPin size={14} color={colors.primaryBright} strokeWidth={iconStroke} />
+            <Text style={styles.locationChipText}>Near me</Text>
+          </Pressable>
         </View>
 
-        <TouchableOpacity style={[styles.heroCard, { backgroundColor: heroColor }]} activeOpacity={0.9} onPress={() => {
-          if (!activeBanner) return;
-          if (activeBanner.ctaAction === 'external' && activeBanner.targetUrl) {
-            void Linking.openURL(activeBanner.targetUrl);
-          } else if (activeBanner.targetId) {
-            void Linking.openURL(`http://localhost:5000/api/services/${activeBanner.targetId}`);
-          }
-        }}>
-          <View style={styles.heroGlow} />
-          <View style={styles.heroText}>
-            <View style={styles.heroBadgeRow}>
-              <Sparkles size={14} color="#fff" />
-              <Text style={styles.heroBadge}>{heroBadge}</Text>
-            </View>
-            <Text style={styles.heroTitle}>{activeBanner?.title ?? fallbackBanner.title}</Text>
-            <Text style={styles.heroSubtitle}>{activeBanner?.subtitle ?? fallbackBanner.subtitle}</Text>
-            <View style={styles.heroButton}>
-              <Text style={styles.heroButtonText}>{activeBanner?.ctaText ?? 'Book Now'}</Text>
-            </View>
-          </View>
-          <View style={styles.heroVisual}>
-            {heroImage ? (
-              <Image source={{ uri: heroImage }} style={styles.heroImage} resizeMode="cover" />
-            ) : (
-              <View style={styles.heroImagePlaceholder}>
-                <Car size={28} color="#ffffff" />
-                <Text style={styles.heroImageLabel}>Garage</Text>
-              </View>
-            )}
-          </View>
-        </TouchableOpacity>
-        <View style={styles.paginationRow}>
-          {banners.length ? banners.map((banner, index) => (
-            <View key={banner._id} style={[styles.paginationDot, index === bannerIndex ? styles.paginationDotActive : null]} />
-          )) : <View style={[styles.paginationDot, styles.paginationDotActive]} />}
-        </View>
+        {/* 3. Hero Banner */}
+        <HeroBannerCarousel
+          banners={banners}
+          bannerIndex={bannerIndex}
+          onIndexChange={setBannerIndex}
+          fallbackImage={heroFallbackImage}
+          onBookPress={() => onNavigateTab?.('services')}
+        />
 
+        {/* 4. Quick Actions */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Service Categories</Text>
-            <Text style={styles.sectionAction}>Explore</Text>
+          <View style={styles.quickActionsGrid}>
+            {quickActions.map((action) => {
+              const Icon = action.icon;
+              return (
+                <Pressable
+                  key={action.label}
+                  style={({ pressed }) => [styles.quickActionCard, pressed && styles.pressed]}
+                  onPress={() => {
+                    if (action.tab) onNavigateTab?.(action.tab);
+                    else scrollToOffers();
+                  }}
+                >
+                  <IconCircle size={58} backgroundColor={colors.primarySoft}>
+                    <Icon size={26} color={colors.primaryBright} strokeWidth={iconStroke} />
+                  </IconCircle>
+                  <Text style={styles.quickActionLabel}>{action.label}</Text>
+                </Pressable>
+              );
+            })}
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
-            {categories.map((category) => (
-              <View key={category.label} style={styles.categoryCard}>
-                <View style={styles.categoryIconWrap}>
-                  <Text style={styles.categoryIcon}>{category.icon}</Text>
-                </View>
-                <Text style={styles.categoryLabel}>{category.label}</Text>
-              </View>
-            ))}
+        </View>
+
+        {/* 5. Service Categories */}
+        <View style={styles.section}>
+          <SectionHeader title="Service Categories" actionLabel="View all" />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
+            {categoryItems.map((category) => {
+              const Icon = category.icon;
+              return (
+                <Pressable
+                  key={category.label}
+                  style={({ pressed }) => [styles.categoryCard, pressed && styles.pressed]}
+                  onPress={() => onNavigateTab?.('services')}
+                >
+                  <IconCircle size={60} backgroundColor={colors.primarySoft}>
+                    <Icon size={26} color={colors.primaryBright} strokeWidth={iconStroke} />
+                  </IconCircle>
+                  <Text style={styles.categoryLabel}>{category.label}</Text>
+                </Pressable>
+              );
+            })}
           </ScrollView>
         </View>
 
+        {/* 6. My Vehicle */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>My Vehicle</Text>
-          </View>
+          <SectionHeader title="My Vehicle" />
           {loading ? (
             <View style={styles.skeletonCard}>
-              <View style={styles.skeletonBlockLarge} />
-              <View style={styles.skeletonBlockMedium} />
-              <View style={[styles.skeletonBlockMedium, { width: '70%' }]} />
+              <View style={styles.skeletonLineLarge} />
+              <View style={styles.skeletonLineMedium} />
+              <View style={styles.skeletonLineSmall} />
             </View>
           ) : activeVehicle ? (
             <View style={styles.vehicleCard}>
-              <View style={styles.vehicleImageWrap}>
-                <View style={styles.vehicleImageBadge}>
-                  <Car size={30} color="#2563eb" />
+              <View style={styles.vehicleImageSection}>
+                <View style={styles.vehicleImageBg}>
+                  <Car size={48} color={colors.primaryBright} strokeWidth={iconStroke} />
+                </View>
+                <View style={styles.vehicleStatusBadge}>
+                  <Text style={styles.vehicleStatusText}>Primary</Text>
                 </View>
               </View>
-              <View style={styles.vehicleDetails}>
+              <View style={styles.vehicleBody}>
                 <Text style={styles.vehicleName}>{`${activeVehicle.make} ${activeVehicle.modelName}`}</Text>
-                <View style={styles.vehicleMetaChip}>
-                  <Text style={styles.vehicleMetaChipText}>Reg {activeVehicle.plateNumber}</Text>
+                <View style={styles.badgeRow}>
+                  <View style={styles.infoBadge}>
+                    <Text style={styles.infoBadgeText}>{activeVehicle.plateNumber}</Text>
+                  </View>
+                  {activeVehicle.year ? (
+                    <View style={[styles.infoBadge, styles.infoBadgeMuted]}>
+                      <Text style={styles.infoBadgeTextMuted}>{activeVehicle.year}</Text>
+                    </View>
+                  ) : null}
                 </View>
-                <Text style={styles.vehicleMeta}>{`Last service: ${activeVehicle.lastServiceDate ?? 'not available'}`}</Text>
-                <Text style={styles.vehicleMeta}>{nextServiceReminder}</Text>
-                <TouchableOpacity style={styles.quickBookButton} activeOpacity={0.85}>
-                  <Text style={styles.quickBookText}>Book Again</Text>
-                </TouchableOpacity>
+                <View style={styles.vehicleMetaRow}>
+                  <Clock3 size={14} color={colors.textMuted} strokeWidth={iconStroke} />
+                  <Text style={styles.vehicleMeta}>
+                    Last service: {activeVehicle.lastServiceDate
+                      ? new Date(activeVehicle.lastServiceDate).toLocaleDateString()
+                      : 'Not recorded'}
+                  </Text>
+                </View>
+                <View style={styles.vehicleMetaRow}>
+                  <Gauge size={14} color={colors.textMuted} strokeWidth={iconStroke} />
+                  <Text style={styles.vehicleMeta}>
+                    Next reminder: {nextServiceDate ? nextServiceDate.toLocaleDateString() : 'Schedule soon'}
+                  </Text>
+                </View>
+                <PremiumButton
+                  label="Book Again"
+                  compact
+                  onPress={() => onNavigateTab?.('services')}
+                  style={styles.vehicleCta}
+                />
               </View>
             </View>
           ) : (
             <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>Add Your First Vehicle</Text>
-              <Text style={styles.emptyText}>Register a vehicle to get the most relevant service recommendations.</Text>
-              <TouchableOpacity style={styles.solidButton} activeOpacity={0.85}>
-                <Text style={styles.solidButtonText}>Add Vehicle</Text>
-              </TouchableOpacity>
+              <IconCircle size={64} backgroundColor={colors.primarySoft}>
+                <Car size={28} color={colors.primaryBright} strokeWidth={iconStroke} />
+              </IconCircle>
+              <Text style={styles.emptyTitle}>Add your first vehicle</Text>
+              <Text style={styles.emptyText}>Register a vehicle to get personalised service recommendations.</Text>
             </View>
           )}
         </View>
 
+        {/* 7. Upcoming Service Reminder */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Popular Services</Text>
-            <Text style={styles.sectionAction}>See all</Text>
+          <SectionHeader title="Upcoming Service Reminder" />
+          <View style={styles.reminderCard}>
+            <View style={styles.reminderTop}>
+              <View>
+                <Text style={styles.reminderCountdown}>
+                  {daysUntilReminder !== null ? `${daysUntilReminder} days` : '--'}
+                </Text>
+                <Text style={styles.reminderCaption}>until recommended service</Text>
+              </View>
+              <IconCircle size={52} backgroundColor={colors.accent}>
+                <Clock3 size={22} color={colors.primaryBright} strokeWidth={iconStroke} />
+              </IconCircle>
+            </View>
+            <Text style={styles.reminderText}>
+              {currentBooking
+                ? `Active order ${currentBooking.orderId} is in progress.`
+                : nextServiceDate
+                  ? `Recommended service by ${nextServiceDate.toLocaleDateString()}`
+                  : 'Schedule your next service to keep your vehicle in top condition.'}
+            </Text>
+            <PremiumButton
+              label="Schedule Service"
+              variant="secondary"
+              compact
+              onPress={() => onNavigateTab?.('services')}
+            />
           </View>
+        </View>
+
+        {/* 8. Popular Services */}
+        <View style={styles.section}>
+          <SectionHeader title="Popular Services" actionLabel="See all" onActionPress={() => onNavigateTab?.('services')} />
           {loading ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.serviceScroll}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
               {Array.from({ length: 3 }).map((_, index) => (
                 <View key={index} style={styles.skeletonServiceCard} />
               ))}
             </ScrollView>
-          ) : displayServices.length > 0 ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.serviceScroll}>
-              {displayServices.map((service) => (
-                <TouchableOpacity key={service._id} activeOpacity={0.9} style={styles.serviceCard}>
-                  {service.thumbnailImage ? (
-                    <Image source={{ uri: service.thumbnailImage }} style={styles.serviceCardImage} />
-                  ) : (
-                    <View style={styles.serviceCardImage}>
-                      <Wrench size={28} color="#2563eb" />
-                    </View>
-                  )}
-                  <View style={styles.serviceCardContent}>
-                    <View style={styles.serviceCardHeaderRow}>
-                      <Text style={styles.serviceCardTitle}>{service.name}</Text>
-                      <View style={styles.ratingChip}>
-                        <Star size={12} color="#f59e0b" fill="#f59e0b" />
-                        <Text style={styles.ratingText}>{service.rating ?? '4.8'}</Text>
+          ) : popularServices.length > 0 ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
+              {popularServices.map((service) => (
+                <View key={service._id} style={styles.serviceCard}>
+                  <View style={styles.serviceImageWrap}>
+                    {service.thumbnailImage ? (
+                      <Image source={{ uri: service.thumbnailImage }} style={styles.serviceImage} />
+                    ) : (
+                      <View style={styles.serviceImagePlaceholder}>
+                        <Wrench size={32} color={colors.primaryBright} strokeWidth={iconStroke} />
                       </View>
-                    </View>
-                    <Text style={styles.serviceCardDescription}>{service.description ?? 'Premium vehicle service designed for your needs.'}</Text>
-                    <View style={styles.serviceStatsRow}>
-                      <Text style={styles.servicePrice}>{formatCurrency(service.price)}</Text>
-                      <Text style={styles.serviceTime}>45 min</Text>
-                    </View>
-                    <TouchableOpacity style={styles.bookNowButton} activeOpacity={0.85}>
-                      <Text style={styles.bookNowText}>Book Now</Text>
-                    </TouchableOpacity>
+                    )}
+                    {service.rating ? (
+                      <View style={styles.serviceRatingBadge}>
+                        <Star size={11} color={colors.warning} fill={colors.warning} strokeWidth={0} />
+                        <Text style={styles.serviceRatingText}>{service.rating.toFixed(1)}</Text>
+                      </View>
+                    ) : null}
                   </View>
-                </TouchableOpacity>
+                  <View style={styles.serviceBody}>
+                    <View style={styles.serviceTitleRow}>
+                      <Text style={styles.serviceName} numberOfLines={2}>{service.name}</Text>
+                    </View>
+                    <Text style={styles.servicePriceLabel}>Starting at</Text>
+                    <Text style={styles.servicePrice}>{formatCurrency(service.price)}</Text>
+                    <View style={styles.serviceMetaRow}>
+                      <Clock3 size={13} color={colors.textMuted} strokeWidth={iconStroke} />
+                      <Text style={styles.serviceMeta}>{formatServiceDuration(service)}</Text>
+                      {service.bookings ? (
+                        <Text style={styles.serviceMeta}>• {service.bookings} bookings</Text>
+                      ) : null}
+                    </View>
+                    <PremiumButton
+                      label="Book Now"
+                      compact
+                      onPress={() => onNavigateTab?.('services')}
+                      style={styles.serviceCta}
+                    />
+                  </View>
+                </View>
               ))}
             </ScrollView>
           ) : (
-            <View style={styles.emptyStateCard}>
-              <Text style={styles.emptyStateTitle}>No services match your search</Text>
-              <Text style={styles.emptyStateText}>Try another keyword or browse popular service categories.</Text>
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyTitle}>No services available</Text>
+              <Text style={styles.emptyText}>Check back soon for new service offerings.</Text>
             </View>
           )}
         </View>
 
-        {currentBooking ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Current Booking</Text>
-            <View style={styles.bookingCard}>
-              <View style={styles.bookingHeader}>
-                <Text style={styles.bookingStatus}>{currentBooking.orderStatus.replace(/_/g, ' ')}</Text>
-                <Text style={styles.bookingAmount}>{formatCurrency(currentBooking.totalAmount ?? 0)}</Text>
-              </View>
-              <Text style={styles.bookingTitle}>{currentBooking.orderId}</Text>
-              <Text style={styles.bookingMeta}>{`${currentBooking.booking?.bookingDate ? new Date(currentBooking.booking.bookingDate).toLocaleDateString() : 'No date'} • ${currentBooking.booking?.preferredTime ?? 'N/A'}`}</Text>
-              <Text style={styles.bookingMeta}>{currentBooking.booking?.address ?? currentBooking.vehicle?.plateNumber ?? 'No address available'}</Text>
-              <TouchableOpacity style={styles.bookingButton} activeOpacity={0.85}>
-                <Text style={styles.bookingButtonText}>View Booking</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ) : null}
-
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Special Offer</Text>
-            <Text style={styles.sectionAction}>Claim now</Text>
-          </View>
+        {/* 9. Offer Banner */}
+        <View
+          style={styles.section}
+          onLayout={(event) => {
+            offerSectionY.current = event.nativeEvent.layout.y;
+          }}
+        >
+          <SectionHeader title="Special Offers" />
           <View style={styles.offerCard}>
             <View style={styles.offerGlow} />
-            <Text style={styles.offerTag}>Limited this week</Text>
-            <Text style={styles.offerTitle}>Free pickup and 10% off full service</Text>
-            <Text style={styles.offerText}>Enjoy premium care with transparent pricing and quick turnaround.</Text>
-            <TouchableOpacity style={styles.offerButton} activeOpacity={0.85}>
-              <Text style={styles.offerButtonText}>Claim Offer</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Spare Parts</Text>
-            <Text style={styles.sectionAction}>See parts</Text>
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.partsScroll}>
-            {popularParts.map((part) => (
-              <View key={part.name} style={styles.partCard}>
-                <View style={styles.partImageWrap}>
-                  <Text style={styles.partIcon}>{part.icon}</Text>
-                </View>
-                <Text style={styles.partName}>{part.name}</Text>
-                <Text style={styles.partBrand}>{part.brand}</Text>
-                <Text style={styles.partPrice}>{formatCurrency(part.price)}</Text>
-                <View style={styles.partMetaRow}>
-                  <Text style={styles.partMeta}>{part.stock}</Text>
-                  <TouchableOpacity style={styles.partButton} activeOpacity={0.85}>
-                    <Text style={styles.partButtonText}>View</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Customer Reviews</Text>
-            <Text style={styles.sectionAction}>Trusted</Text>
-          </View>
-          {reviewCards.map((review) => (
-            <View key={review.author} style={styles.reviewCard}>
-              <View style={styles.reviewHeader}>
-                <View style={styles.reviewAuthorWrap}>
-                  <View style={styles.reviewAvatar}>
-                    <Text style={styles.reviewAvatarText}>{review.avatar}</Text>
-                  </View>
-                  <View>
-                    <Text style={styles.reviewAuthor}>{review.author}</Text>
-                    <Text style={styles.reviewDate}>{review.date}</Text>
-                  </View>
-                </View>
-                <View style={styles.ratingChip}>
-                  <Star size={12} color="#f59e0b" fill="#f59e0b" />
-                  <Text style={styles.ratingText}>{review.rating.toFixed(1)}</Text>
-                </View>
-              </View>
-              <Text style={styles.reviewTitle}>{review.title}</Text>
-              <Text style={styles.reviewText}>{review.details}</Text>
+            <View style={styles.offerBadge}>
+              <Gift size={14} color="#FFFFFF" strokeWidth={iconStroke} />
+              <Text style={styles.offerBadgeText}>Limited offer</Text>
             </View>
-          ))}
+            <Text style={styles.offerTitle}>{offerBanner?.title ?? 'Premium care packages'}</Text>
+            <Text style={styles.offerSubtitle}>
+              {offerBanner?.subtitle ?? 'Exclusive deals on full service and doorstep pickup.'}
+            </Text>
+            <PremiumButton
+              label={offerBanner?.ctaText ?? 'Explore Offers'}
+              onPress={() => {
+                if (offerBanner?.ctaAction === 'external' && offerBanner.targetUrl) {
+                  void Linking.openURL(offerBanner.targetUrl);
+                } else {
+                  onNavigateTab?.('services');
+                }
+              }}
+              style={styles.offerCta}
+            />
+          </View>
         </View>
 
+        {/* 10. Spare Parts */}
+        <View style={styles.section}>
+          <SectionHeader title="Spare Parts" actionLabel="See all" onActionPress={() => onNavigateTab?.('services')} />
+          {loading ? (
+            <ActivityIndicator color={colors.primaryBright} style={{ marginVertical: spacing.md }} />
+          ) : spareParts.length > 0 ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
+              {spareParts.map((part) => (
+                <View key={part._id} style={styles.partCard}>
+                  <View style={styles.partImageWrap}>
+                    <Wrench size={28} color={colors.primaryBright} strokeWidth={iconStroke} />
+                  </View>
+                  <Text style={styles.partBrand}>{part.sku ? `SKU ${part.sku}` : 'Genuine part'}</Text>
+                  <Text style={styles.partName} numberOfLines={2}>{part.name}</Text>
+                  <Text style={styles.partPrice}>{formatCurrency(part.price)}</Text>
+                  <View style={styles.partFooter}>
+                    <Text style={styles.partStock}>
+                      {part.stockQuantity !== undefined ? `${part.stockQuantity} in stock` : 'Available'}
+                    </Text>
+                    <PremiumButton label="Add" compact variant="secondary" style={styles.partAddBtn} />
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          ) : (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyTitle}>No spare parts listed</Text>
+              <Text style={styles.emptyText}>Parts from our inventory will appear here when available.</Text>
+            </View>
+          )}
+        </View>
+
+        {/* 11. Why Choose Us */}
+        <View style={styles.section}>
+          <SectionHeader title="Why Choose Us" />
+          <View style={styles.featureGrid}>
+            {whyChooseUs.map((feature) => {
+              const Icon = feature.icon;
+              return (
+                <View key={feature.title} style={styles.featureCard}>
+                  <IconCircle size={44} backgroundColor={colors.primarySoft}>
+                    <Icon size={20} color={colors.primaryBright} strokeWidth={iconStroke} />
+                  </IconCircle>
+                  <Text style={styles.featureTitle}>{feature.title}</Text>
+                  <Text style={styles.featureText}>{feature.description}</Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* 12. Customer Reviews */}
+        <View style={styles.section}>
+          <SectionHeader title="Customer Reviews" />
+          {reviewOrders.length > 0 ? (
+            reviewOrders.map((order) => (
+              <View key={order._id} style={styles.reviewCard}>
+                <View style={styles.reviewHeader}>
+                  <View style={styles.reviewAuthorRow}>
+                    <View style={styles.reviewAvatar}>
+                      <Text style={styles.reviewAvatarText}>
+                        {(order.customer?.fullName ?? profile?.fullName ?? 'C')[0]?.toUpperCase()}
+                      </Text>
+                    </View>
+                    <View>
+                      <View style={styles.verifiedRow}>
+                        <Text style={styles.reviewAuthor}>{order.customer?.fullName ?? profile?.fullName ?? 'Customer'}</Text>
+                        <BadgeCheck size={14} color={colors.primaryBright} strokeWidth={iconStroke} />
+                      </View>
+                      <Text style={styles.reviewDate}>
+                        {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'Recent'}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+                <Text style={styles.reviewService}>
+                  {order.services?.map((item) => item.name).filter(Boolean).join(', ') || 'Garage service'}
+                </Text>
+                <Text style={styles.reviewText}>
+                  Completed service order {order.orderId} with transparent pricing and professional care.
+                </Text>
+              </View>
+            ))
+          ) : (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyTitle}>No reviews yet</Text>
+              <Text style={styles.emptyText}>Verified customer reviews will appear after completed services.</Text>
+            </View>
+          )}
+        </View>
+
+        {/* 13. Emergency Assistance */}
         <View style={styles.section}>
           <View style={styles.emergencyCard}>
-            <View style={styles.emergencyHeader}>
-              <View>
+            <View style={styles.emergencyGradientTop} />
+            <View style={styles.emergencyGradientBottom} />
+            <View style={styles.emergencyTop}>
+              <View style={styles.emergencyCopy}>
                 <Text style={styles.emergencyTitle}>Emergency Assistance</Text>
-                <Text style={styles.emergencyText}>Roadside help whenever you need it.</Text>
+                <Text style={styles.emergencySubtitle}>Roadside help whenever you need it.</Text>
               </View>
               <View style={styles.emergencyBadge}>
-                <Text style={styles.emergencyBadgeText}>24/7</Text>
+                <Text style={styles.emergencyBadgeText}>24×7</Text>
+              </View>
+            </View>
+            <View style={styles.emergencyIllustration}>
+              <View style={styles.emergencyTruckCircle}>
+                <Truck size={40} color="#FFFFFF" strokeWidth={iconStroke} />
               </View>
             </View>
             <View style={styles.emergencyActions}>
-              <TouchableOpacity style={styles.callButton} activeOpacity={0.85}>
-                <Text style={styles.callButtonText}>Call Now</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.whatsappButton} activeOpacity={0.85}>
-                <Text style={styles.whatsappButtonText}>WhatsApp</Text>
-              </TouchableOpacity>
+              <PremiumButton
+                label="Call Now"
+                compact
+                onPress={() => void Linking.openURL('tel:+911800000000')}
+                style={styles.emergencyBtn}
+              />
+              <PremiumButton
+                label="WhatsApp"
+                compact
+                variant="outline"
+                onPress={() => void Linking.openURL('https://wa.me/911800000000')}
+                style={styles.emergencyBtn}
+              />
             </View>
           </View>
         </View>
 
+        {/* 14. Recent Orders */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recent Orders</Text>
+          <SectionHeader title="Recent Orders" actionLabel="View all" onActionPress={() => onNavigateTab?.('bookings')} />
           {loading ? (
             Array.from({ length: 2 }).map((_, index) => (
               <View key={index} style={styles.skeletonOrderCard} />
             ))
           ) : recentOrders.length > 0 ? (
-            recentOrders.slice(0, 3).map((order) => (
+            recentOrders.slice(0, 4).map((order, index) => (
               <View key={order._id} style={styles.orderCard}>
-                <View style={styles.orderRow}>
-                  <Text style={styles.orderId}>{order.orderId}</Text>
-                  <Text style={styles.orderStatus}>{order.orderStatus.replace(/_/g, ' ')}</Text>
+                <View style={styles.orderTimeline}>
+                  <View style={[styles.timelineDot, index === 0 ? styles.timelineDotActive : null]} />
+                  {index < Math.min(recentOrders.length, 4) - 1 ? <View style={styles.timelineLine} /> : null}
                 </View>
-                <Text style={styles.orderMeta}>{order.booking?.bookingDate ? new Date(order.booking.bookingDate).toLocaleDateString() : 'No schedule yet'}</Text>
-                <Text style={styles.orderMeta}>{order.booking?.address ?? order.vehicle?.plateNumber ?? 'No details available'}</Text>
+                <View style={styles.orderBody}>
+                  <View style={styles.orderHeader}>
+                    <View style={styles.statusBadge}>
+                      <Text style={styles.statusBadgeText}>{order.orderStatus.replace(/_/g, ' ')}</Text>
+                    </View>
+                    <Text style={styles.orderAmount}>{formatCurrency(order.totalAmount ?? 0)}</Text>
+                  </View>
+                  <Text style={styles.orderId}>{order.orderId}</Text>
+                  <Text style={styles.orderMeta}>
+                    {order.booking?.bookingDate
+                      ? new Date(order.booking.bookingDate).toLocaleDateString()
+                      : 'No schedule'}{' '}
+                    • {order.booking?.preferredTime ?? 'N/A'}
+                  </Text>
+                  <Text style={styles.orderMeta} numberOfLines={1}>
+                    {order.services?.map((item) => item.name).filter(Boolean).join(', ')
+                      || order.booking?.address
+                      || order.vehicle?.plateNumber
+                      || 'Service details'}
+                  </Text>
+                  <PremiumButton
+                    label="Track"
+                    compact
+                    variant="secondary"
+                    onPress={() => onNavigateTab?.('bookings')}
+                    style={styles.trackBtn}
+                  />
+                </View>
               </View>
             ))
           ) : (
-            <View style={styles.emptyStateCard}>
-              <Text style={styles.emptyStateTitle}>No recent orders yet</Text>
-              <Text style={styles.emptyStateText}>Completed service orders will appear here when available.</Text>
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyTitle}>No recent orders</Text>
+              <Text style={styles.emptyText}>Your completed service orders will appear here.</Text>
             </View>
           )}
         </View>
 
+        {stats ? (
+          <Text style={styles.statsCaption}>
+            {stats.services} services • {stats.orders} orders served
+          </Text>
+        ) : null}
       </ScrollView>
-
-      <TouchableOpacity style={styles.emergencyButton} activeOpacity={0.85}>
-        <View style={styles.emergencyRow}>
-          <Text style={styles.emergencyIcon}>🚨</Text>
-          <View>
-            <Text style={styles.emergencyTitle}>Emergency Assistance</Text>
-            <Text style={styles.emergencySubtitle}>Roadside help whenever you need it.</Text>
-          </View>
-        </View>
-      </TouchableOpacity>
     </View>
   );
 };
@@ -525,871 +738,931 @@ const HomeDashboard = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: colors.background,
   },
   content: {
-    paddingTop: 24,
-    paddingHorizontal: 16,
-    paddingBottom: 200,
+    paddingTop: spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingBottom: 140,
   },
-  topHeader: {
+  errorBanner: {
+    backgroundColor: '#FEF2F2',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  errorText: {
+    color: colors.danger,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 22,
+    alignItems: 'flex-start',
+    marginBottom: spacing.lg,
   },
-  titleBlock: {
+  headerLeft: {
     flex: 1,
-    paddingRight: 12,
+    paddingRight: spacing.md,
   },
-  greeting: {
-    color: '#475569',
-    fontSize: 15,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
+  greeting: typography.greeting,
   userName: {
-    color: '#0f172a',
-    fontSize: 28,
-    fontWeight: '900',
+    ...typography.userName,
+    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
   },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    gap: spacing.sm,
+    marginTop: spacing.xs,
   },
-  locationText: {
-    color: '#64748b',
-    fontSize: 13,
-    marginLeft: 6,
+  locationTextWrap: {
+    flex: 1,
+  },
+  locationLabel: {
+    ...typography.caption,
+    color: colors.textLight,
+  },
+  locationValue: {
+    color: colors.textMuted,
     fontWeight: '600',
+    fontSize: 13,
+    marginTop: 2,
   },
-  metaActions: {
+  headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.sm,
   },
-  iconButton: {
-    width: 46,
-    height: 46,
-    borderRadius: 16,
-    backgroundColor: '#ffffff',
+  headerIconBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    justifyContent: 'center',
+    borderColor: colors.border,
     alignItems: 'center',
-    marginRight: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 6,
-  },
-  iconText: {
-    fontSize: 18,
-  },
-  avatarCircle: {
-    width: 46,
-    height: 46,
-    borderRadius: 16,
-    backgroundColor: '#eff6ff',
     justifyContent: 'center',
+    ...shadow.card,
+  },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.md,
+    backgroundColor: colors.primarySoft,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   avatarText: {
+    color: colors.primaryBright,
     fontSize: 18,
-    fontWeight: '900',
-    color: '#2563eb',
+    fontWeight: '800',
   },
-  searchWrap: {
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  searchSection: {
+    marginBottom: spacing.lg,
+    gap: spacing.sm,
+  },
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    marginBottom: 20,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    ...shadow.card,
   },
   searchInput: {
     flex: 1,
-    marginLeft: 8,
-    color: '#0f172a',
+    marginLeft: spacing.sm,
+    color: colors.text,
     fontSize: 15,
+    fontWeight: '500',
+    paddingVertical: spacing.sm,
+  },
+  filterBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.sm,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  locationChip: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.secondary,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  locationChipText: {
+    color: colors.text,
+    fontWeight: '700',
+    fontSize: 13,
   },
   heroCard: {
-    backgroundColor: '#2563eb',
-    borderRadius: 28,
-    padding: 22,
+    backgroundColor: colors.primaryBright,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    flexDirection: 'row',
     overflow: 'hidden',
-    marginBottom: 22,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    minHeight: 200,
+    ...shadow.float,
   },
-  heroText: {
+  heroGradientTop: {
+    position: 'absolute',
+    top: -40,
+    right: -20,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  heroGradientBottom: {
+    position: 'absolute',
+    bottom: -60,
+    left: -30,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: 'rgba(0,0,0,0.08)',
+  },
+  heroContent: {
     flex: 1,
-    paddingRight: 14,
-  },
-  heroBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
+    paddingRight: spacing.md,
+    zIndex: 1,
   },
   heroBadge: {
-    color: '#dbeafe',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    marginBottom: spacing.sm,
+  },
+  heroBadgeText: {
+    color: '#FFFFFF',
     fontWeight: '700',
-    marginLeft: 6,
+    fontSize: 12,
   },
   heroTitle: {
-    color: '#ffffff',
+    color: '#FFFFFF',
     fontSize: 24,
-    fontWeight: '900',
-    marginBottom: 12,
-    lineHeight: 32,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    lineHeight: 30,
+    marginBottom: spacing.sm,
   },
   heroSubtitle: {
-    color: '#dbeafe',
+    color: 'rgba(255,255,255,0.88)',
     fontSize: 14,
-    lineHeight: 22,
-    marginBottom: 16,
+    lineHeight: 20,
+    marginBottom: spacing.md,
   },
-  heroButton: {
+  heroCta: {
     alignSelf: 'flex-start',
-    backgroundColor: '#ffffff',
-    borderRadius: 18,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-  },
-  heroButtonText: {
-    color: '#1d4ed8',
-    fontWeight: '800',
-  },
-  heroGlow: {
-    position: 'absolute',
-    top: -24,
-    right: -24,
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: 'rgba(255,255,255,0.16)',
+    backgroundColor: '#FFFFFF',
+    minWidth: 120,
   },
   heroVisual: {
-    width: 112,
-    height: 112,
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 1,
   },
-  heroImagePlaceholder: {
-    width: 104,
-    height: 104,
-    borderRadius: 28,
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  heroImageLabel: {
-    color: '#ffffff',
-    fontWeight: '900',
-    fontSize: 16,
+  heroImage: {
+    width: 100,
+    height: 100,
+    borderRadius: radius.lg,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   paginationRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginTop: spacing.md,
+    marginBottom: spacing.lg,
+    gap: 6,
   },
   paginationDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#cbd5e1',
-    marginHorizontal: 4,
+    backgroundColor: colors.border,
   },
   paginationDotActive: {
     width: 24,
-    backgroundColor: '#2563eb',
+    backgroundColor: colors.primaryBright,
   },
   section: {
-    marginBottom: 22,
+    marginBottom: spacing.lg,
   },
-  sectionHeader: {
+  horizontalScroll: {
+    paddingVertical: spacing.xs,
+    gap: spacing.md,
+  },
+  quickActionsGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+  },
+  quickActionCard: {
+    width: '47%',
+    aspectRatio: 1,
+    maxHeight: 132,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
     alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    color: '#0f172a',
-    fontWeight: '900',
-  },
-  sectionAction: {
-    color: '#2563eb',
-    fontWeight: '700',
-  },
-  notificationBadge: {
-    position: 'absolute',
-    top: -6,
-    right: -6,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#ef4444',
     justifyContent: 'center',
+    gap: spacing.sm,
+    ...shadow.card,
+  },
+  quickActionLabel: {
+    ...typography.cardTitle,
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  categoryCard: {
+    width: 112,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
     alignItems: 'center',
+    gap: spacing.sm,
+    marginRight: spacing.sm,
+    ...shadow.card,
   },
-  notificationBadgeText: {
-    color: '#ffffff',
+  categoryLabel: {
+    color: colors.text,
+    fontWeight: '700',
     fontSize: 12,
-    fontWeight: '800',
-  },
-  heroImage: {
-    width: 104,
-    height: 104,
-    borderRadius: 28,
-    backgroundColor: 'rgba(255,255,255,0.16)',
-  },
-  skeletonCard: {
-    backgroundColor: '#f1f5f9',
-    borderRadius: 22,
-    padding: 20,
-    marginBottom: 12,
-  },
-  skeletonBlockLarge: {
-    height: 18,
-    backgroundColor: '#e2e8f0',
-    borderRadius: 12,
-    marginBottom: 12,
-    width: '80%',
-  },
-  skeletonBlockMedium: {
-    height: 14,
-    backgroundColor: '#e2e8f0',
-    borderRadius: 10,
-    marginBottom: 10,
-    width: '60%',
-  },
-  skeletonServiceCard: {
-    height: 160,
-    backgroundColor: '#e2e8f0',
-    borderRadius: 22,
-    marginBottom: 16,
+    textAlign: 'center',
   },
   vehicleCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 26,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    padding: 18,
+    borderColor: colors.border,
+    padding: spacing.md,
     flexDirection: 'row',
+    gap: spacing.md,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 8,
+    ...shadow.float,
   },
-  vehicleImageWrap: {
-    width: 96,
-    height: 96,
-    borderRadius: 22,
-    backgroundColor: '#eff6ff',
-    justifyContent: 'center',
+  vehicleImageSection: {
+    width: 112,
     alignItems: 'center',
-    marginRight: 16,
-  },
-  vehicleImageBadge: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
-    backgroundColor: '#ffffff',
     justifyContent: 'center',
+  },
+  vehicleImageBg: {
+    width: 112,
+    height: 112,
+    borderRadius: radius.lg,
+    backgroundColor: colors.primarySoft,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  vehicleImageLabel: {
-    color: '#1d4ed8',
-    fontSize: 15,
-    fontWeight: '900',
+  vehicleStatusBadge: {
+    position: 'absolute',
+    top: 0,
+    backgroundColor: colors.primaryBright,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
   },
-  vehicleDetails: {
+  vehicleStatusText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  vehicleBody: {
     flex: 1,
-    justifyContent: 'space-between',
   },
   vehicleName: {
-    color: '#0f172a',
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '800',
+    color: colors.text,
+    marginBottom: spacing.sm,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  infoBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+  },
+  infoBadgeMuted: {
+    backgroundColor: colors.secondary,
+  },
+  infoBadgeText: {
+    color: colors.primaryBright,
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  infoBadgeTextMuted: {
+    color: colors.textMuted,
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  vehicleMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     marginBottom: 6,
   },
   vehicleMeta: {
-    color: '#64748b',
+    color: colors.textMuted,
     fontSize: 13,
-    marginBottom: 4,
+    fontWeight: '500',
+    flex: 1,
   },
-  vehicleMetaChip: {
+  vehicleCta: {
+    marginTop: spacing.sm,
     alignSelf: 'flex-start',
-    backgroundColor: '#eff6ff',
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    marginBottom: 8,
   },
-  vehicleMetaChipText: {
-    color: '#2563eb',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  quickBookButton: {
-    marginTop: 8,
-    backgroundColor: '#2563eb',
-    borderRadius: 16,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  quickBookText: {
-    color: '#ffffff',
-    fontWeight: '800',
-  },
-  emptyCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 24,
+  reminderCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    padding: 22,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 8,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    ...shadow.card,
   },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#0f172a',
-    marginBottom: 8,
-  },
-  emptyText: {
-    color: '#64748b',
-    lineHeight: 22,
-    marginBottom: 16,
-  },
-  solidButton: {
-    backgroundColor: '#2563eb',
-    borderRadius: 16,
-    paddingVertical: 14,
+  reminderTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: spacing.md,
   },
-  solidButtonText: {
-    color: '#ffffff',
+  reminderCountdown: {
+    fontSize: 32,
     fontWeight: '800',
+    color: colors.primaryBright,
+    letterSpacing: -1,
   },
-  categoryScroll: {
-    paddingVertical: 8,
-  },
-  categoryCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    marginRight: 12,
-    alignItems: 'center',
-    minWidth: 92,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 4,
-  },
-  categoryIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: '#eff6ff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  categoryIcon: {
-    fontSize: 18,
-  },
-  categoryLabel: {
-    color: '#0f172a',
-    fontWeight: '700',
+  reminderCaption: {
+    color: colors.textMuted,
+    fontWeight: '600',
     fontSize: 13,
-    textAlign: 'center',
+    marginTop: 4,
   },
-  serviceScroll: {
-    paddingVertical: 4,
+  reminderText: {
+    ...typography.subtitle,
+    marginBottom: spacing.md,
   },
   serviceCard: {
-    width: 280,
-    backgroundColor: '#ffffff',
-    borderRadius: 24,
+    width: 300,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    marginRight: 14,
+    borderColor: colors.border,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 8,
+    marginRight: spacing.md,
+    ...shadow.float,
   },
-  serviceCardImage: {
-    height: 160,
-    backgroundColor: '#e0efff',
+  serviceImageWrap: {
+    position: 'relative',
+    width: '100%',
+    height: 180,
+  },
+  serviceImage: {
+    width: '100%',
+    height: 180,
+    backgroundColor: colors.secondary,
+  },
+  serviceImagePlaceholder: {
+    width: '100%',
+    height: 180,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
   },
-  serviceCardImageLabel: {
-    color: '#1d4ed8',
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  serviceCardContent: {
-    padding: 18,
-  },
-  serviceCardHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  serviceCardTitle: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#0f172a',
-    marginBottom: 8,
-  },
-  serviceCardDescription: {
-    color: '#64748b',
-    lineHeight: 20,
-    marginBottom: 14,
-  },
-  ratingChip: {
+  serviceRatingBadge: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff7ed',
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
   },
-  ratingText: {
-    color: '#92400e',
+  serviceRatingText: {
+    color: colors.text,
     fontWeight: '800',
-    marginLeft: 4,
     fontSize: 12,
   },
-  serviceStatsRow: {
+  serviceBody: {
+    padding: spacing.md,
+  },
+  serviceTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  serviceName: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  ratingPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
+    gap: 4,
+    backgroundColor: '#FFF7ED',
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
+  ratingText: {
+    color: colors.text,
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  servicePriceLabel: {
+    ...typography.caption,
+    color: colors.textLight,
   },
   servicePrice: {
-    color: '#2563eb',
-    fontWeight: '900',
-    fontSize: 16,
+    color: colors.primaryBright,
+    fontSize: 20,
+    fontWeight: '800',
+    marginBottom: spacing.sm,
   },
-  serviceTime: {
-    color: '#64748b',
-    fontWeight: '700',
-  },
-  serviceFooter: {
+  serviceMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 4,
+    marginBottom: spacing.md,
+    flexWrap: 'wrap',
   },
   serviceMeta: {
-    color: '#64748b',
-    fontWeight: '700',
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: '600',
   },
-  serviceRating: {
-    color: '#0f172a',
-    fontWeight: '700',
-  },
-  bookNowButton: {
-    backgroundColor: '#2563eb',
-    borderRadius: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-  },
-  bookNowText: {
-    color: '#ffffff',
-    fontWeight: '800',
-  },
-  bookingCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    padding: 18,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 8,
-  },
-  bookingHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  bookingStatus: {
-    color: '#2563eb',
-    fontWeight: '800',
-    textTransform: 'capitalize',
-  },
-  bookingAmount: {
-    color: '#0f172a',
-    fontWeight: '900',
-  },
-  bookingTitle: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: '#0f172a',
-    marginBottom: 6,
-  },
-  bookingMeta: {
-    color: '#64748b',
-    lineHeight: 20,
-    marginBottom: 10,
-  },
-  bookingButton: {
-    backgroundColor: '#2563eb',
-    borderRadius: 16,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  bookingButtonText: {
-    color: '#ffffff',
-    fontWeight: '800',
+  serviceCta: {
+    alignSelf: 'stretch',
   },
   offerCard: {
-    backgroundColor: '#111827',
-    borderRadius: 24,
-    padding: 20,
+    backgroundColor: '#0F172A',
+    borderRadius: radius.xl,
+    padding: spacing.lg,
     overflow: 'hidden',
-    position: 'relative',
-  },
-  offerButton: {
-    marginTop: 16,
-    alignSelf: 'flex-start',
-    backgroundColor: '#2563eb',
-    borderRadius: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-  },
-  offerButtonText: {
-    color: '#ffffff',
-    fontWeight: '800',
+    ...shadow.float,
   },
   offerGlow: {
     position: 'absolute',
-    top: -20,
-    right: -20,
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(37, 99, 235, 0.25)',
+    top: -30,
+    right: -30,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(37,99,235,0.35)',
   },
-  offerTag: {
-    color: '#bfdbfe',
+  offerBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    marginBottom: spacing.sm,
+  },
+  offerBadgeText: {
+    color: colors.accent,
     fontWeight: '800',
-    marginBottom: 8,
+    fontSize: 12,
   },
   offerTitle: {
-    color: '#ffffff',
-    fontSize: 20,
-    fontWeight: '900',
-    marginBottom: 8,
-  },
-  offerText: {
-    color: '#dbeafe',
-    lineHeight: 20,
-  },
-  skeletonOrderCard: {
-    height: 100,
-    backgroundColor: '#e2e8f0',
-    borderRadius: 22,
-    marginBottom: 16,
-  },
-  orderCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    padding: 16,
-    marginBottom: 14,
-  },
-  orderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  orderId: {
-    color: '#0f172a',
-    fontWeight: '900',
-  },
-  orderStatus: {
-    color: '#2563eb',
+    color: '#FFFFFF',
+    fontSize: 22,
     fontWeight: '800',
-    textTransform: 'capitalize',
+    marginBottom: spacing.sm,
+    letterSpacing: -0.3,
   },
-  orderMeta: {
-    color: '#64748b',
+  offerSubtitle: {
+    color: 'rgba(255,255,255,0.78)',
+    fontSize: 14,
     lineHeight: 20,
+    marginBottom: spacing.md,
   },
-  emptyStateCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    padding: 20,
-  },
-  emptyStateTitle: {
-    fontSize: 16,
-    color: '#0f172a',
-    fontWeight: '900',
-    marginBottom: 8,
-  },
-  emptyStateText: {
-    color: '#64748b',
-    lineHeight: 22,
-  },
-  partsScroll: {
-    paddingVertical: 4,
+  offerCta: {
+    alignSelf: 'flex-start',
   },
   partCard: {
     width: 220,
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    padding: 14,
-    marginRight: 12,
+    borderColor: colors.border,
+    overflow: 'hidden',
+    marginRight: spacing.md,
+    ...shadow.card,
   },
   partImageWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: '#eff6ff',
+    height: 120,
+    backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
+    marginBottom: spacing.sm,
   },
-  partIcon: {
-    fontSize: 18,
+  partBrand: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: '700',
+    paddingHorizontal: spacing.md,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
   },
   partName: {
     fontSize: 15,
-    fontWeight: '900',
-    color: '#0f172a',
+    fontWeight: '800',
+    color: colors.text,
+    marginBottom: 4,
+    paddingHorizontal: spacing.md,
   },
-  partBrand: {
-    color: '#64748b',
-    fontSize: 13,
-    marginTop: 2,
-  },
-  partMeta: {
-    color: '#2563eb',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  partMetaRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 10,
+  partSku: {
+    color: colors.textLight,
+    fontSize: 11,
+    fontWeight: '600',
+    marginBottom: spacing.sm,
   },
   partPrice: {
-    color: '#0f172a',
-    fontWeight: '900',
-    marginTop: 8,
+    color: colors.primaryBright,
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.md,
   },
-  partButton: {
-    backgroundColor: '#eff6ff',
-    borderRadius: 999,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+  partFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
   },
-  partButtonText: {
-    color: '#2563eb',
+  partStock: {
+    color: colors.success,
+    fontSize: 11,
     fontWeight: '700',
-    fontSize: 12,
+    flex: 1,
+  },
+  partAddBtn: {
+    minWidth: 72,
   },
   featureGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 12,
+    gap: spacing.md,
   },
   featureCard: {
-    width: '48%',
-    backgroundColor: '#ffffff',
-    borderRadius: 22,
+    width: '47%',
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    padding: 18,
-    marginBottom: 12,
+    borderColor: colors.border,
+    padding: spacing.md,
+    gap: spacing.sm,
+    ...shadow.card,
   },
   featureTitle: {
-    fontSize: 15,
-    fontWeight: '900',
-    color: '#0f172a',
-    marginBottom: 8,
+    ...typography.cardTitle,
   },
   featureText: {
-    color: '#64748b',
-    lineHeight: 20,
+    ...typography.subtitle,
+    fontSize: 13,
   },
   reviewCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 22,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    padding: 18,
-    marginBottom: 14,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    ...shadow.card,
   },
   reviewHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
+    alignItems: 'flex-start',
+    marginBottom: spacing.sm,
   },
-  reviewAuthorWrap: {
+  reviewAuthorRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.sm,
+    flex: 1,
   },
   reviewAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#eff6ff',
-    justifyContent: 'center',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.primarySoft,
     alignItems: 'center',
-    marginRight: 10,
+    justifyContent: 'center',
   },
   reviewAvatarText: {
-    color: '#2563eb',
-    fontWeight: '900',
+    color: colors.primaryBright,
+    fontWeight: '800',
+    fontSize: 16,
+  },
+  verifiedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   reviewAuthor: {
-    color: '#2563eb',
+    color: colors.text,
     fontWeight: '800',
-    marginBottom: 2,
+    fontSize: 14,
   },
   reviewDate: {
-    color: '#64748b',
+    color: colors.textLight,
     fontSize: 12,
+    fontWeight: '600',
+    marginTop: 2,
   },
-  reviewTitle: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: '#0f172a',
-    marginBottom: 6,
+  reviewService: {
+    color: colors.primaryBright,
+    fontWeight: '700',
+    fontSize: 13,
+    marginBottom: spacing.sm,
   },
   reviewText: {
-    color: '#64748b',
-    lineHeight: 20,
-    marginBottom: 10,
-  },
-  reviewRating: {
-    color: '#0f172a',
-    fontWeight: '800',
+    ...typography.subtitle,
   },
   emergencyCard: {
-    backgroundColor: '#eff6ff',
-    borderRadius: 24,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
+    backgroundColor: '#1E3A8A',
+    borderRadius: radius.xl,
+    borderWidth: 0,
+    padding: spacing.lg,
+    overflow: 'hidden',
+    ...shadow.float,
   },
-  emergencyHeader: {
+  emergencyGradientTop: {
+    position: 'absolute',
+    top: -40,
+    right: -20,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: 'rgba(96,165,250,0.35)',
+  },
+  emergencyGradientBottom: {
+    position: 'absolute',
+    bottom: -50,
+    left: -30,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: 'rgba(15,23,42,0.45)',
+  },
+  emergencyTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 14,
+    alignItems: 'flex-start',
+    marginBottom: spacing.md,
   },
-  emergencyText: {
-    color: '#475569',
-    lineHeight: 20,
-    marginTop: 6,
+  emergencyCopy: {
+    flex: 1,
+    paddingRight: spacing.md,
+  },
+  emergencyTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  emergencySubtitle: {
+    ...typography.subtitle,
+    marginTop: spacing.xs,
+    color: 'rgba(255,255,255,0.82)',
   },
   emergencyBadge: {
-    backgroundColor: '#2563eb',
-    borderRadius: 999,
-    paddingHorizontal: 10,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
   },
   emergencyBadgeText: {
-    color: '#ffffff',
-    fontWeight: '900',
+    color: '#FFFFFF',
+    fontWeight: '800',
     fontSize: 12,
+  },
+  emergencyIllustration: {
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    zIndex: 1,
+  },
+  emergencyTruckCircle: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emergencyActions: {
     flexDirection: 'row',
-    gap: 10,
+    gap: spacing.sm,
   },
-  callButton: {
+  emergencyBtn: {
     flex: 1,
-    backgroundColor: '#2563eb',
-    borderRadius: 16,
-    paddingVertical: 12,
-    alignItems: 'center',
   },
-  callButtonText: {
-    color: '#ffffff',
-    fontWeight: '800',
-  },
-  whatsappButton: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
-  },
-  whatsappButtonText: {
-    color: '#2563eb',
-    fontWeight: '800',
-  },
-  emergencyButton: {
-    position: 'absolute',
-    left: 16,
-    right: 16,
-    bottom: 104,
-    backgroundColor: '#ffffff',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 10,
-    padding: 18,
-  },
-  emergencyRow: {
+  orderCard: {
     flexDirection: 'row',
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  orderTimeline: {
     alignItems: 'center',
-    gap: 14,
+    width: 20,
+    paddingTop: 6,
   },
-  emergencyIcon: {
-    fontSize: 24,
+  timelineDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: colors.border,
+    borderWidth: 2,
+    borderColor: colors.surface,
   },
-  emergencyTitle: {
-    color: '#0f172a',
-    fontSize: 16,
-    fontWeight: '900',
+  timelineDotActive: {
+    backgroundColor: colors.primaryBright,
   },
-  emergencySubtitle: {
-    color: '#64748b',
+  timelineLine: {
+    flex: 1,
+    width: 2,
+    backgroundColor: colors.border,
     marginTop: 4,
+    minHeight: 80,
+  },
+  orderBody: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    ...shadow.card,
+  },
+  orderHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  statusBadge: {
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
+  statusBadgeText: {
+    color: colors.primaryBright,
+    fontWeight: '800',
+    fontSize: 11,
+    textTransform: 'capitalize',
+  },
+  orderAmount: {
+    color: colors.text,
+    fontWeight: '800',
+    fontSize: 15,
+  },
+  orderId: {
+    color: colors.text,
+    fontWeight: '800',
+    fontSize: 15,
+    marginBottom: 4,
+  },
+  orderMeta: {
+    color: colors.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 4,
+  },
+  trackBtn: {
+    alignSelf: 'flex-start',
+    marginTop: spacing.sm,
+  },
+  emptyCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    alignItems: 'center',
+    gap: spacing.sm,
+    ...shadow.card,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.text,
+    textAlign: 'center',
+  },
+  emptyText: {
+    ...typography.subtitle,
+    textAlign: 'center',
+  },
+  skeletonCard: {
+    backgroundColor: colors.secondary,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    gap: spacing.sm,
+  },
+  skeletonLineLarge: {
+    height: 20,
+    width: '70%',
+    backgroundColor: colors.border,
+    borderRadius: radius.sm,
+  },
+  skeletonLineMedium: {
+    height: 14,
+    width: '50%',
+    backgroundColor: colors.border,
+    borderRadius: radius.sm,
+  },
+  skeletonLineSmall: {
+    height: 14,
+    width: '40%',
+    backgroundColor: colors.border,
+    borderRadius: radius.sm,
+  },
+  skeletonServiceCard: {
+    width: 280,
+    height: 280,
+    backgroundColor: colors.secondary,
+    borderRadius: radius.xl,
+    marginRight: spacing.md,
+  },
+  skeletonOrderCard: {
+    height: 110,
+    backgroundColor: colors.secondary,
+    borderRadius: radius.lg,
+    marginBottom: spacing.md,
+  },
+  statsCaption: {
+    textAlign: 'center',
+    color: colors.textLight,
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: spacing.md,
+  },
+  pressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.98 }],
   },
 });
 

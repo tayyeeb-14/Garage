@@ -1,10 +1,46 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Image, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import BookingSchedulePicker, { formatDisplayDate, formatDisplayTime } from '../components/BookingSchedulePicker';
 import { formatCurrency } from '../utils/currency';
 import { createBookingRequest, CreatedBooking, fetchServicesForDetails, fetchVehiclesForBooking, getCurrentCustomerId } from './bookingFlowService';
 import { PublicService, Vehicle } from './dashboardService';
 
 type ScreenMode = 'list' | 'details' | 'booking' | 'success';
+
+const isValidDateString = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);
+const isValidTimeString = (value: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+
+const parseLocalDate = (value: string) => {
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
+const isPastDate = (value: string) => {
+  const bookingDay = parseLocalDate(value);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return bookingDay < today;
+};
+
+const getBookingDateError = (value: string) => {
+  if (!value.trim()) return 'Please select a date from the calendar';
+  if (!isValidDateString(value)) return 'Please select a valid date';
+  if (isPastDate(value)) return 'Date cannot be in the past';
+  return '';
+};
+
+const getPreferredTimeError = (value: string) => {
+  if (!value.trim()) return 'Please select a time slot';
+  if (!isValidTimeString(value)) return 'Please select a valid time slot';
+  return '';
+};
+
+const getAddressError = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return 'Address is required';
+  if (trimmed.length < 3) return 'Address must be at least 3 characters';
+  return '';
+};
 
 const MobileServiceScreen = () => {
   const [services, setServices] = useState<PublicService[]>([]);
@@ -114,8 +150,8 @@ const MobileServiceScreen = () => {
           <Text style={styles.successTitle}>Booking Confirmed</Text>
           <Text style={styles.successText}>Booking ID: {latestBooking.bookingId}</Text>
           <Text style={styles.successText}>Status: {latestBooking.status}</Text>
-          <Text style={styles.successText}>Date: {new Date(latestBooking.bookingDate).toLocaleDateString()}</Text>
-          <Text style={styles.successText}>Time: {latestBooking.preferredTime}</Text>
+          <Text style={styles.successText}>Date: {formatDisplayDate(latestBooking.bookingDate.slice(0, 10))}</Text>
+          <Text style={styles.successText}>Time: {formatDisplayTime(latestBooking.preferredTime)}</Text>
           <Text style={styles.successText}>Service: {selectedService.name}</Text>
           <Text style={styles.successText}>Vehicle: {latestBooking.vehicle ?? 'Selected vehicle'}</Text>
           <TouchableOpacity
@@ -180,11 +216,22 @@ const BookingFlow = ({
   const [step, setStep] = useState(1);
   const [selectedVehicle, setSelectedVehicle] = useState('');
   const [bookingDate, setBookingDate] = useState('');
-  const [preferredTime, setPreferredTime] = useState('10:00');
+  const [preferredTime, setPreferredTime] = useState('');
   const [address, setAddress] = useState('');
   const [notes, setNotes] = useState('');
   const [pickupRequired, setPickupRequired] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  const bookingDateError = getBookingDateError(bookingDate);
+  const preferredTimeError = getPreferredTimeError(preferredTime);
+  const addressError = getAddressError(address);
+
+  const isStep1Valid = Boolean(selectedVehicle);
+  const isStep2Valid = !bookingDateError && !preferredTimeError;
+  const isStep3Valid = !addressError;
+
+  const isCurrentStepValid =
+    step === 1 ? isStep1Valid : step === 2 ? isStep2Valid : step === 3 ? isStep3Valid : true;
 
   useEffect(() => {
     const loadVehicles = async () => {
@@ -200,9 +247,16 @@ const BookingFlow = ({
 
   const selectedVehicleData = vehicles.find((vehicle) => vehicle._id === selectedVehicle);
 
+  const goToNextStep = () => {
+    if (!isCurrentStepValid) {
+      return;
+    }
+    setStep((prev) => prev + 1);
+  };
+
   const submitBooking = async () => {
-    if (!selectedVehicle || !bookingDate || !preferredTime || address.trim().length < 3) {
-      Alert.alert('Incomplete details', 'Please fill vehicle, date, time and address.');
+    if (!isStep1Valid || !isStep2Valid || !isStep3Valid) {
+      Alert.alert('Incomplete details', 'Please complete all booking steps before confirming.');
       return;
     }
     try {
@@ -254,15 +308,23 @@ const BookingFlow = ({
               <Text style={styles.optionText}>{vehicle.plateNumber} • {vehicle.make} {vehicle.modelName}</Text>
             </TouchableOpacity>
           ))}
+          {step === 1 && !selectedVehicle ? (
+            <Text style={styles.fieldError}>Please select a vehicle to continue.</Text>
+          ) : null}
         </View>
       ) : null}
 
       {step === 2 ? (
         <View>
           <Text style={styles.sectionTitle}>Step 2: Select Date & Time</Text>
-          <TextInput value={bookingDate} onChangeText={setBookingDate} placeholder="YYYY-MM-DD" style={styles.input} />
-          <TextInput value={preferredTime} onChangeText={setPreferredTime} placeholder="HH:MM (24h)" style={styles.input} />
-          <TextInput value={address} onChangeText={setAddress} placeholder="Service address" style={styles.input} />
+          <BookingSchedulePicker
+            bookingDate={bookingDate}
+            preferredTime={preferredTime}
+            onDateChange={setBookingDate}
+            onTimeChange={setPreferredTime}
+            dateError={bookingDateError || undefined}
+            timeError={preferredTimeError || undefined}
+          />
           <TextInput value={notes} onChangeText={setNotes} placeholder="Additional notes (optional)" style={styles.input} multiline />
           <TouchableOpacity style={styles.switchRow} onPress={() => setPickupRequired((prev) => !prev)}>
             <Text style={styles.switchLabel}>Pickup Required</Text>
@@ -273,13 +335,23 @@ const BookingFlow = ({
 
       {step === 3 ? (
         <View>
-          <Text style={styles.sectionTitle}>Step 3: Review Booking</Text>
+          <Text style={styles.sectionTitle}>Step 3: Service Address</Text>
+          <TextInput
+            value={address}
+            onChangeText={setAddress}
+            placeholder="Service address"
+            style={[styles.input, addressError ? styles.inputError : null]}
+          />
+          {addressError ? (
+            <Text style={styles.fieldError}>{addressError}</Text>
+          ) : null}
+          <Text style={styles.sectionTitle}>Review Booking</Text>
           <View style={styles.reviewBlock}>
             <Text style={styles.reviewLine}>Service: {service.name}</Text>
             <Text style={styles.reviewLine}>Price: {formatCurrency(service.price)}</Text>
             <Text style={styles.reviewLine}>Vehicle: {selectedVehicleData ? `${selectedVehicleData.plateNumber} • ${selectedVehicleData.make}` : 'Not selected'}</Text>
-            <Text style={styles.reviewLine}>Date & Time: {bookingDate || '-'} {preferredTime || '-'}</Text>
-            <Text style={styles.reviewLine}>Address: {address || '-'}</Text>
+            <Text style={styles.reviewLine}>Date & Time: {bookingDate ? formatDisplayDate(bookingDate) : '-'} • {preferredTime ? formatDisplayTime(preferredTime) : '-'}</Text>
+            <Text style={styles.reviewLine}>Address: {address.trim() || '-'}</Text>
             <Text style={styles.reviewLine}>Pickup: {pickupRequired ? 'Yes' : 'No'}</Text>
           </View>
         </View>
@@ -299,7 +371,11 @@ const BookingFlow = ({
           </TouchableOpacity>
         ) : null}
         {step < 4 ? (
-          <TouchableOpacity style={styles.button} onPress={() => setStep((prev) => prev + 1)}>
+          <TouchableOpacity
+            style={[styles.button, !isCurrentStepValid ? styles.buttonDisabled : null]}
+            onPress={goToNextStep}
+            disabled={!isCurrentStepValid}
+          >
             <Text style={styles.buttonText}>Next</Text>
           </TouchableOpacity>
         ) : (
@@ -318,6 +394,9 @@ const styles = StyleSheet.create({
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc' },
   title: { fontSize: 24, fontWeight: '700', color: '#0f172a', marginBottom: 12 },
   input: { backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, borderColor: '#cbd5e1', borderWidth: 1, marginBottom: 12 },
+  inputError: { borderColor: '#ef4444' },
+  fieldError: { color: '#dc2626', fontSize: 13, marginTop: -8, marginBottom: 12 },
+  buttonDisabled: { backgroundColor: '#93c5fd' },
   list: { paddingBottom: 24 },
   card: { backgroundColor: '#fff', borderRadius: 16, overflow: 'hidden', marginBottom: 12, borderWidth: 1, borderColor: '#e2e8f0' },
   image: { width: '100%', height: 140, backgroundColor: '#e2e8f0' },

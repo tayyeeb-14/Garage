@@ -67,6 +67,32 @@ const parseJsonPayload = async (response: Response) => {
   }
 };
 
+const refreshAccessToken = async (): Promise<string | null> => {
+  const refreshToken = await safeGetItem(REFRESH_TOKEN_KEY);
+  if (!refreshToken) {
+    return null;
+  }
+
+  try {
+    const response = await fetch('http://localhost:5000/api/auth/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+    const payload = await parseJsonPayload(response);
+    const accessToken = payload?.data?.accessToken;
+
+    if (!response.ok || typeof accessToken !== 'string' || !accessToken) {
+      return null;
+    }
+
+    await safeSetItem(TOKEN_KEY, accessToken);
+    return accessToken;
+  } catch {
+    return null;
+  }
+};
+
 const requestAuth = async (endpoint: string, body: Record<string, unknown>) => {
   try {
     const response = await fetch(endpoint, {
@@ -144,6 +170,43 @@ export const buildAuthHeaders = async (): Promise<Record<string, string>> => {
   return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
 };
 
+export const fetchWithAuth = async (input: string, init: RequestInit = {}): Promise<Response> => {
+  const attachToken = async (token: string | null) => {
+    const headers = new Headers(init.headers ?? {});
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+    return headers;
+  };
+
+  let accessToken = await safeGetItem(TOKEN_KEY);
+  let response = await fetch(input, {
+    ...init,
+    headers: await attachToken(accessToken),
+  });
+
+  if (response.status !== 401 && response.status !== 403) {
+    return response;
+  }
+
+  accessToken = await refreshAccessToken();
+  if (!accessToken) {
+    await clearAuthState();
+    return response;
+  }
+
+  response = await fetch(input, {
+    ...init,
+    headers: await attachToken(accessToken),
+  });
+
+  if (response.status === 401 || response.status === 403) {
+    await clearAuthState();
+  }
+
+  return response;
+};
+
 export type AuthVerificationResult = 'authenticated' | 'unauthenticated' | 'offline';
 
 export const verifyAuthToken = async (): Promise<AuthVerificationResult> => {
@@ -154,11 +217,10 @@ export const verifyAuthToken = async (): Promise<AuthVerificationResult> => {
   }
 
   try {
-    const response = await fetch('http://localhost:5000/api/auth/profile', {
+    const response = await fetchWithAuth('http://localhost:5000/api/auth/profile', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`,
       },
     });
 

@@ -15,6 +15,10 @@ export class OrderRepository {
       .lean();
   }
 
+  async findByBooking(bookingId: string) {
+    return Order.findOne({ booking: new Types.ObjectId(bookingId), deletedAt: { $exists: false } }).lean();
+  }
+
   async findAll(query: Record<string, unknown>, page = 1, limit = 10) {
     const filter: FilterQuery<IOrder> = { deletedAt: { $exists: false } };
 

@@ -3,6 +3,7 @@ import { Booking, IBooking } from '../models/Booking.js';
 
 export class BookingRepository {
   async create(data: Partial<IBooking>) {
+    console.log('BookingRepository.create attempt:', data);
     return Booking.create(data);
   }
 
@@ -65,6 +66,11 @@ export class BookingRepository {
   }
 
   async findActiveByVehicleDateTime(vehicleId: string, bookingDate: Date, preferredTime: string) {
+    console.log('BookingRepository.findActiveByVehicleDateTime:', {
+      vehicleId,
+      bookingDate,
+      preferredTime,
+    });
     return Booking.findOne({
       vehicle: new Types.ObjectId(vehicleId),
       bookingDate,

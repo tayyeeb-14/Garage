@@ -9,12 +9,22 @@ export class BookingController {
     try {
       const authReq = req as AuthenticatedRequest;
       const payload = { ...req.body } as Record<string, unknown>;
+      console.log('BookingController.createBooking entered:', {
+        authUser: authReq.user,
+        body: req.body,
+      });
       if (authReq.user?.role === 'customer') {
         payload.customer = authReq.user.sub;
       }
+      console.log('BookingController.createBooking final payload:', payload);
       const booking = await this.bookingService.createBooking(payload);
+      console.log('BookingController.createBooking success:', {
+        bookingId: booking.bookingId,
+        id: booking._id,
+      });
       res.status(201).json({ success: true, data: booking });
     } catch (error) {
+      console.log('BookingController.createBooking failed:', error);
       next(error);
     }
   };

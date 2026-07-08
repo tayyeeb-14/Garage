@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Bell, BookOpen, Home, Package, UserRound } from 'lucide-react-native';
+import { Bell, BookOpen, Home, UserRound, Wrench } from 'lucide-react-native';
+import { colors, iconStroke, radius, shadow, spacing } from '../theme/tokens';
 
 export type TabKey = 'home' | 'services' | 'bookings' | 'notifications' | 'profile';
 
@@ -9,78 +10,111 @@ interface BottomTabBarProps {
   onChangeTab: (tab: TabKey) => void;
 }
 
-const tabs: Array<{ key: TabKey; label: string; icon: React.ReactNode }> = [
-  { key: 'home', label: 'Home', icon: <Home size={18} /> },
-  { key: 'bookings', label: 'Bookings', icon: <BookOpen size={18} /> },
-  { key: 'services', label: 'Parts', icon: <Package size={18} /> },
-  { key: 'notifications', label: 'Notifications', icon: <Bell size={18} /> },
-  { key: 'profile', label: 'Profile', icon: <UserRound size={18} /> },
+const tabs: Array<{ key: TabKey; label: string; Icon: typeof Home }> = [
+  { key: 'home', label: 'Home', Icon: Home },
+  { key: 'bookings', label: 'Bookings', Icon: BookOpen },
+  { key: 'services', label: 'Garage', Icon: Wrench },
+  { key: 'notifications', label: 'Notifications', Icon: Bell },
+  { key: 'profile', label: 'Profile', Icon: UserRound },
 ];
 
 const BottomTabBar = ({ activeTab, onChangeTab }: BottomTabBarProps) => (
-  <View style={styles.navContainer}>
-    {tabs.map((tab) => {
-      const isActive = activeTab === tab.key;
-      const iconColor = isActive ? '#0f172a' : '#94a3b8';
-      return (
-        <Pressable
-          key={tab.key}
-          onPress={() => onChangeTab(tab.key)}
-          style={({ pressed }) => [styles.tabButton, pressed && styles.tabButtonPressed]}
-        >
-          <View style={styles.tabIcon}>{React.isValidElement(tab.icon) ? React.cloneElement(tab.icon, { color: iconColor }) : tab.icon}</View>
-          <Text style={[styles.tabLabel, isActive ? styles.tabLabelActive : styles.tabLabelInactive]}>{tab.label}</Text>
-        </Pressable>
-      );
-    })}
+  <View style={styles.wrapper}>
+    <View style={styles.navContainer}>
+      {tabs.map((tab) => {
+        const isActive = activeTab === tab.key;
+        const { Icon } = tab;
+
+        return (
+          <Pressable
+            key={tab.key}
+            onPress={() => onChangeTab(tab.key)}
+            style={({ pressed }) => [styles.tabButton, pressed && styles.pressed]}
+          >
+            <View style={[styles.tabPill, isActive ? styles.tabPillActive : null]}>
+              <View style={[styles.tabIconWrap, isActive ? styles.tabIconWrapActive : null]}>
+                <Icon
+                  size={20}
+                  color={isActive ? '#FFFFFF' : colors.textLight}
+                  strokeWidth={iconStroke}
+                />
+              </View>
+              <Text style={[styles.tabLabel, isActive ? styles.tabLabelActive : styles.tabLabelInactive]}>
+                {tab.label}
+              </Text>
+            </View>
+          </Pressable>
+        );
+      })}
+    </View>
   </View>
 );
 
 const styles = StyleSheet.create({
-  navContainer: {
+  wrapper: {
     position: 'absolute',
-    bottom: 16,
-    left: 16,
-    right: 16,
-    height: 78,
-    backgroundColor: '#ffffff',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
+    paddingTop: spacing.sm,
+    backgroundColor: 'transparent',
+  },
+  navContainer: {
+    height: 80,
+    backgroundColor: colors.background,
     borderRadius: 28,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: colors.border,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-around',
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 12,
-    paddingHorizontal: 8,
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xs,
+    ...shadow.float,
   },
   tabButton: {
     flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
     minWidth: 56,
+  },
+  tabPill: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    borderRadius: radius.md,
+    minWidth: 52,
   },
-  tabButtonPressed: {
-    opacity: 0.64,
+  tabPillActive: {
+    backgroundColor: 'transparent',
   },
-  tabIcon: {
+  tabIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  tabIconWrapActive: {
+    backgroundColor: colors.primaryBright,
+    ...shadow.card,
   },
   tabLabel: {
     marginTop: 4,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
   },
   tabLabelActive: {
-    color: '#0f172a',
+    color: colors.primaryBright,
   },
   tabLabelInactive: {
-    color: '#94a3b8',
+    color: colors.textLight,
+  },
+  pressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.96 }],
   },
 });
 

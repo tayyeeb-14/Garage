@@ -1,4 +1,4 @@
-import { buildAuthHeaders } from './authService';
+import { fetchWithAuth } from './authService';
 
 export interface Vehicle {
   _id: string;
@@ -20,6 +20,17 @@ export interface PublicService {
   popular?: boolean;
   rating?: number;
   bookings?: number;
+  estimatedDuration?: number;
+}
+
+export interface DashboardProduct {
+  _id: string;
+  name: string;
+  sku?: string;
+  description?: string;
+  price: number;
+  stockQuantity?: number;
+  lowStockThreshold?: number;
 }
 
 export interface DashboardOrder {
@@ -101,12 +112,10 @@ const API_BASE = 'http://localhost:5000/api';
 
 export const fetchUserProfile = async (): Promise<Profile | null> => {
   try {
-    const authHeaders = await buildAuthHeaders();
-    const response = await fetch(`${API_BASE}/auth/profile`, {
+    const response = await fetchWithAuth(`${API_BASE}/auth/profile`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        ...authHeaders,
       },
     });
     if (!response.ok) {
@@ -136,6 +145,19 @@ export const fetchPublicServices = async (): Promise<PublicService[]> => {
 export const fetchTopServices = async (): Promise<PublicService[]> => {
   try {
     const response = await fetch(`${API_BASE}/dashboard/top-services`);
+    if (!response.ok) {
+      return [];
+    }
+    const payload = await response.json().catch(() => ({}));
+    return payload.data ?? [];
+  } catch {
+    return [];
+  }
+};
+
+export const fetchLowStockProducts = async (): Promise<DashboardProduct[]> => {
+  try {
+    const response = await fetch(`${API_BASE}/dashboard/low-stock`);
     if (!response.ok) {
       return [];
     }
@@ -187,12 +209,10 @@ export const fetchDashboardStats = async (): Promise<DashboardStats | null> => {
 
 export const fetchCustomerBookings = async (customerId: string): Promise<CustomerBooking[]> => {
   try {
-    const authHeaders = await buildAuthHeaders();
-    const response = await fetch(`${API_BASE}/bookings/customer/${customerId}`, {
+    const response = await fetchWithAuth(`${API_BASE}/bookings/customer/${customerId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        ...authHeaders,
       },
     });
     if (!response.ok) {

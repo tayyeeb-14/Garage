@@ -5,6 +5,7 @@ export class BookingService {
   constructor(private readonly bookingRepository: BookingRepository) {}
 
   async createBooking(input: Record<string, unknown>) {
+    console.log('BookingService.createBooking start:', input);
     const bookingDate = new Date(input.bookingDate as string);
     const preferredTime = input.preferredTime as string;
     const vehicleId = input.vehicle as string;
@@ -15,15 +16,23 @@ export class BookingService {
     const today = new Date(now);
     today.setHours(0, 0, 0, 0);
     if (bookingDateOnly < today) {
+      console.log('BookingService.createBooking rejected: past date');
       throw new Error('Booking date cannot be in the past');
     }
 
     const existing = await this.bookingRepository.findActiveByVehicleDateTime(vehicleId, bookingDate, preferredTime);
     if (existing) {
+      console.log('BookingService.createBooking rejected: duplicate slot', {
+        existingId: existing._id,
+        vehicleId,
+        bookingDate,
+        preferredTime,
+      });
       throw new Error('A booking already exists for this vehicle on the selected date and time');
     }
 
     const bookingId = this.generateBookingId();
+    console.log('BookingService.createBooking creating record:', { bookingId });
     return this.bookingRepository.create({ ...input, bookingId, bookingDate, preferredTime });
   }
 
@@ -80,15 +89,19 @@ export class BookingService {
 
   private async createOrderFromBooking(booking: any) {
     const orderRepository = new OrderRepository();
-    const existing = await orderRepository.findById(booking._id.toString());
+    const existing = await orderRepository.findByBooking(booking._id.toString());
     if (existing) {
       return existing;
     }
 
     const services = Array.isArray(booking.services) ? booking.services.map((service: any) => service._id?.toString() ?? service.toString()) : [];
-    const totalAmount = services.reduce((sum: number, service: any) => sum + Number(service?.price ?? 0), 0);
+    const totalAmount = (Array.isArray(booking.services) ? booking.services : []).reduce(
+      (sum: number, service: any) => sum + Number(service?.price ?? 0),
+      0,
+    );
 
     return orderRepository.create({
+      orderId: this.generateOrderId(),
       booking: booking._id,
       customer: booking.customer?._id ?? booking.customer,
       vehicle: booking.vehicle?._id ?? booking.vehicle,
@@ -99,6 +112,12 @@ export class BookingService {
       orderStatus: 'pending',
       notes: booking.notes,
     });
+  }
+
+  private generateOrderId() {
+    const prefix = 'OR';
+    const random = Math.floor(100000 + Math.random() * 900000);
+    return `${prefix}${random}`;
   }
 
   private generateBookingId() {
