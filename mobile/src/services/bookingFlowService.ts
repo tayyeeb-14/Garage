@@ -65,10 +65,6 @@ export const getCurrentCustomerId = async (): Promise<string> => {
 };
 
 export const createBookingRequest = async (payload: BookingPayload): Promise<CreatedBooking> => {
-  console.log('[bookingFlow] createBookingRequest() called', {
-    payloadBookingDate: payload.bookingDate,
-    preferredTime: payload.preferredTime,
-  });
   const response = await fetchWithAuth(`${API_URL}/bookings`, {
     method: 'POST',
     headers: {
@@ -76,9 +72,7 @@ export const createBookingRequest = async (payload: BookingPayload): Promise<Cre
     },
     body: JSON.stringify(payload),
   });
-  console.log('[bookingFlow] createBookingRequest() after fetch', { status: response.status });
   const body = await parsePayload(response);
-  console.log('[bookingFlow] createBookingRequest() response body', body);
   if (!response.ok) {
     throw new Error(body?.message || 'Unable to create booking');
   }

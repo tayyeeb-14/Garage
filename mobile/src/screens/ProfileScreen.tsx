@@ -22,22 +22,15 @@ const ProfileScreen = ({ profile, showMyBookings, onShowMyBookings, onBookServic
   const firstName = profile?.fullName?.split(' ')[0] ?? 'Customer';
 
   const performLogout = async () => {
-    console.log('ProfileScreen: confirmation accepted');
-    console.log('ProfileScreen: calling clearAuthState');
     await clearAuthState();
-    console.log('ProfileScreen: clearAuthState finished');
-    console.log('ProfileScreen: calling App logout handler');
     if (onLogout) {
       await onLogout();
     }
   };
 
   const handleLogout = async () => {
-    console.log('ProfileScreen: logout button pressed');
-
     if (Platform.OS === 'web') {
       const confirmed = confirmAction('Are you sure you want to logout?');
-      console.log('ProfileScreen: confirmation dialog result', confirmed);
       if (confirmed) {
         await performLogout();
       }
@@ -45,7 +38,7 @@ const ProfileScreen = ({ profile, showMyBookings, onShowMyBookings, onBookServic
     }
 
     Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel', onPress: () => console.log('ProfileScreen: confirmation cancelled') },
+      { text: 'Cancel', style: 'cancel' },
       {
         text: 'Logout',
         style: 'destructive',

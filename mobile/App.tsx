@@ -48,61 +48,42 @@ export default function App() {
   };
 
   const verifyAuth = async () => {
-    console.log('Auth init start');
     const tokens = await getAuthTokens();
-    console.log('App startup token', tokens.accessToken ? 'present' : 'missing');
-    console.log('App startup refresh token', tokens.refreshToken ? 'present' : 'missing');
-    console.log('App startup cached user', tokens.user ? 'present' : 'missing');
-    console.log('App startup isAuthenticated', isAuthenticated);
     const result = await verifyAuthToken();
-    console.log('Auth verification result', result);
     setAuthStatus(result);
     setIsAuthenticated(result === 'authenticated');
   };
 
   useEffect(() => {
-    console.log('App mounted');
     void verifyAuth();
   }, []);
 
   const handleSplashFinish = () => {
-    console.log('Splash finished');
     setShowSplash(false);
   };
 
   const handleAuthSuccess = () => {
-    console.log('Auth success');
     setAuthStatus('authenticated');
     setIsAuthenticated(true);
   };
 
   const handleRetry = () => {
-    console.log('Retrying auth verification');
     setShowSplash(true);
     setAuthStatus('checking');
     void verifyAuth();
   };
 
   const handleLogout = async () => {
-    console.log('App: logout start');
-    const tokensBeforeLogout = await getAuthTokens();
-    console.log('App: tokens before logout', tokensBeforeLogout);
-    console.log('App: calling clearAuthState');
     await clearAuthState();
-    console.log('App: clearAuthState finished');
-    const tokensAfterLogout = await getAuthTokens();
-    console.log('App: tokens after logout', tokensAfterLogout);
     setActiveTab('home');
     setShowMyBookings(false);
     setAuthStatus('unauthenticated');
     setIsAuthenticated(false);
     setAuthScreenKey((value) => value + 1);
     setShowSplash(false);
-    console.log('App: auth state updated', { authStatus: 'unauthenticated', isAuthenticated: false });
   };
 
   if (showSplash || authStatus === 'checking') {
-    console.log('Rendering splash screen');
     return (
       <View style={{ flex: 1 }}>
         <SplashScreen onFinish={handleSplashFinish} />
@@ -112,7 +93,6 @@ export default function App() {
   }
 
   if (authStatus === 'offline') {
-    console.log('Rendering offline screen');
     return (
       <View style={{ flex: 1 }}>
         <OfflineScreen onRetry={handleRetry} />
@@ -121,7 +101,6 @@ export default function App() {
     );
   }
 
-  console.log('Rendering app', authStatus === 'authenticated' ? 'Authenticated' : 'Guest');
   return (
     <View style={styles.appContainer}>
       <View style={styles.contentContainer}>

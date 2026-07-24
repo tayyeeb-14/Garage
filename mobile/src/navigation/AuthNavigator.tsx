@@ -20,8 +20,6 @@ const AuthNavigator = ({ onAuthSuccess, resetKey }: AuthNavigatorProps) => {
 
   const moveTo = (newRoute: AuthRoute) => setRoute(newRoute);
 
-  console.log('Auth screen shown');
-
   return (
     <View style={{ flex: 1 }}>
       {route === 'login' && (

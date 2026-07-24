@@ -6,6 +6,14 @@
     "platforms": ["ios", "android", "web"],
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "light"
+    "userInterfaceStyle": "light",
+    "sdkVersion": "52.0.0",
+    "assetBundlePatterns": ["**/*"],
+    "android": {
+      "package": "com.menterprises.mobile"
+    },
+    "ios": {
+      "bundleIdentifier": "com.menterprises.mobile"
+    }
   }
 }

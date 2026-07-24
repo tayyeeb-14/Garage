@@ -120,7 +120,6 @@ const requestAuth = async (endpoint: string, body: Record<string, unknown>) => {
 };
 
 export const storeAuthTokens = async (accessToken: string, refreshToken: string, user?: AuthUser) => {
-  console.log('storeAuthTokens', { accessToken: Boolean(accessToken), refreshToken: Boolean(refreshToken), user: Boolean(user) });
   await safeSetItem(TOKEN_KEY, accessToken);
   await safeSetItem(REFRESH_TOKEN_KEY, refreshToken);
   if (user) {
@@ -134,7 +133,6 @@ export const getAuthTokens = async () => {
   const accessToken = await safeGetItem(TOKEN_KEY);
   const refreshToken = await safeGetItem(REFRESH_TOKEN_KEY);
   const user = await safeGetItem(USER_KEY);
-  console.log('getAuthTokens', { accessToken: Boolean(accessToken), refreshToken: Boolean(refreshToken), user: Boolean(user), keys: Object.values(AUTH_STORAGE_KEYS) });
   return { accessToken, refreshToken, user };
 };
 
@@ -153,17 +151,13 @@ export const getStoredAuthUser = async (): Promise<AuthUser | null> => {
 };
 
 export const clearAuthTokens = async () => {
-  console.log('clearAuthTokens:start', { keys: Object.values(AUTH_STORAGE_KEYS) });
   await safeDeleteItem(TOKEN_KEY);
   await safeDeleteItem(REFRESH_TOKEN_KEY);
-  console.log('clearAuthTokens:end');
 };
 
 export const clearAuthState = async () => {
-  console.log('clearAuthState:start', { keys: Object.values(AUTH_STORAGE_KEYS) });
   await clearAuthTokens();
   await safeDeleteItem(USER_KEY);
-  console.log('clearAuthState:end', { keys: Object.values(AUTH_STORAGE_KEYS) });
 };
 
 export const buildAuthHeaders = async (): Promise<Record<string, string>> => {
