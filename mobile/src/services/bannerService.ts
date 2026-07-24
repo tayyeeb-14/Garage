@@ -1,3 +1,5 @@
+import { API_URL } from '../config/api';
+
 export interface MobileBanner {
   _id: string;
   title: string;
@@ -13,11 +15,9 @@ export interface MobileBanner {
   targetUrl?: string;
 }
 
-const API_BASE = 'http://localhost:5000/api/banners';
-
 export const fetchActiveBanners = async (): Promise<MobileBanner[]> => {
   try {
-    const response = await fetch(`${API_BASE}?activeOnly=true`);
+    const response = await fetch(`${API_URL}/banners?activeOnly=true`);
     if (!response.ok) {
       return [];
     }

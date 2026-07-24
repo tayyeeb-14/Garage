@@ -2,7 +2,7 @@ const { test, expect } = require('playwright/test');
 
 test('trace real customer booking flow', async ({ page, request }) => {
   test.setTimeout(120000);
-  const apiBase = 'http://localhost:5000/api';
+  const apiBase = 'https://m-enterprises-api.onrender.com/api';
   const stamp = Date.now();
   const email = `trace.${stamp}@example.com`;
   const password = 'Pass1234!';

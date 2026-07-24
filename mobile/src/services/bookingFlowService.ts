@@ -1,7 +1,6 @@
+import { API_URL } from '../config/api';
 import { fetchWithAuth } from './authService';
 import { fetchPublicServices, PublicService, Vehicle } from './dashboardService';
-
-const API_BASE = 'http://localhost:5000/api';
 
 interface BookingPayload {
   customer: string;
@@ -45,14 +44,14 @@ export const fetchServicesForDetails = async (): Promise<PublicService[]> => {
 };
 
 export const fetchVehiclesForBooking = async (): Promise<Vehicle[]> => {
-  const response = await fetch(`${API_BASE}/vehicles`);
+  const response = await fetch(`${API_URL}/vehicles`);
   if (!response.ok) return [];
   const payload = await parsePayload(response);
   return payload.data ?? [];
 };
 
 export const getCurrentCustomerId = async (): Promise<string> => {
-  const response = await fetchWithAuth(`${API_BASE}/auth/profile`, {
+  const response = await fetchWithAuth(`${API_URL}/auth/profile`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -70,7 +69,7 @@ export const createBookingRequest = async (payload: BookingPayload): Promise<Cre
     payloadBookingDate: payload.bookingDate,
     preferredTime: payload.preferredTime,
   });
-  const response = await fetchWithAuth(`${API_BASE}/bookings`, {
+  const response = await fetchWithAuth(`${API_URL}/bookings`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

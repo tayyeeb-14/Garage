@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { formatCurrency } from '../utils/currency';
 import { ActivityIndicator, Alert, FlatList, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { API_URL } from '../config/api';
 
 interface OrderItem {
   _id: string;
@@ -22,7 +23,7 @@ const OrderListScreen = () => {
 
   const loadOrders = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/orders/customer/000000000000000000000000');
+      const response = await fetch(`${API_URL}/orders/customer/000000000000000000000000`);
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(payload.message || 'Unable to load orders');

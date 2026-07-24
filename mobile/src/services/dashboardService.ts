@@ -1,3 +1,4 @@
+import { API_URL } from '../config/api';
 import { fetchWithAuth } from './authService';
 
 export interface Vehicle {
@@ -147,11 +148,9 @@ export interface DashboardStats {
   revenue: number;
 }
 
-const API_BASE = 'http://localhost:5000/api';
-
 export const fetchUserProfile = async (): Promise<Profile | null> => {
   try {
-    const response = await fetchWithAuth(`${API_BASE}/auth/profile`, {
+    const response = await fetchWithAuth(`${API_URL}/auth/profile`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -176,7 +175,7 @@ export const fetchPublicServices = async (params?: Record<string, string | numbe
         if (value !== undefined && value !== '') query.set(key, String(value));
       });
     }
-    const response = await fetch(`${API_BASE}/services/public?${query.toString()}`);
+    const response = await fetch(`${API_URL}/services/public?${query.toString()}`);
     if (!response.ok) throw new Error('Unable to load services.');
     const payload = await response.json().catch(() => ({}));
     return payload.data?.items ?? payload.data ?? [];
@@ -188,7 +187,7 @@ export const fetchPublicServices = async (params?: Record<string, string | numbe
 
 export const fetchPublicServiceById = async (id: string): Promise<PublicService | null> => {
   try {
-    const response = await fetch(`${API_BASE}/services/public/${id}`);
+    const response = await fetch(`${API_URL}/services/public/${id}`);
     if (!response.ok) return null;
     const payload = await response.json().catch(() => ({}));
     return payload.data ?? null;
@@ -199,7 +198,7 @@ export const fetchPublicServiceById = async (id: string): Promise<PublicService 
 
 export const fetchTopServices = async (): Promise<PublicService[]> => {
   try {
-    const response = await fetch(`${API_BASE}/dashboard/top-services`);
+    const response = await fetch(`${API_URL}/dashboard/top-services`);
     if (!response.ok) {
       return [];
     }
@@ -212,7 +211,7 @@ export const fetchTopServices = async (): Promise<PublicService[]> => {
 
 export const fetchLowStockProducts = async (): Promise<DashboardProduct[]> => {
   try {
-    const response = await fetch(`${API_BASE}/dashboard/low-stock`);
+    const response = await fetch(`${API_URL}/dashboard/low-stock`);
     if (!response.ok) {
       return [];
     }
@@ -232,7 +231,7 @@ export const fetchPublicParts = async (params?: Record<string, string | number |
       }
     });
   }
-  const response = await fetch(`${API_BASE}/inventory/public?${query.toString()}`);
+  const response = await fetch(`${API_URL}/inventory/public?${query.toString()}`);
   if (!response.ok) {
     throw new Error('Unable to load spare parts.');
   }
@@ -242,7 +241,7 @@ export const fetchPublicParts = async (params?: Record<string, string | number |
 
 export const fetchVehicles = async (): Promise<Vehicle[]> => {
   try {
-    const response = await fetch(`${API_BASE}/vehicles`);
+    const response = await fetch(`${API_URL}/vehicles`);
     if (!response.ok) {
       return [];
     }
@@ -255,7 +254,7 @@ export const fetchVehicles = async (): Promise<Vehicle[]> => {
 
 export const fetchRecentOrders = async (): Promise<DashboardOrder[]> => {
   try {
-    const response = await fetch(`${API_BASE}/dashboard/recent-orders`);
+    const response = await fetch(`${API_URL}/dashboard/recent-orders`);
     if (!response.ok) {
       return [];
     }
@@ -268,7 +267,7 @@ export const fetchRecentOrders = async (): Promise<DashboardOrder[]> => {
 
 export const fetchDashboardStats = async (): Promise<DashboardStats | null> => {
   try {
-    const response = await fetch(`${API_BASE}/dashboard/stats`);
+    const response = await fetch(`${API_URL}/dashboard/stats`);
     if (!response.ok) {
       return null;
     }
@@ -281,7 +280,7 @@ export const fetchDashboardStats = async (): Promise<DashboardStats | null> => {
 
 export const fetchCustomerBookings = async (customerId: string): Promise<CustomerBooking[]> => {
   try {
-    const response = await fetchWithAuth(`${API_BASE}/bookings/customer/${customerId}`, {
+    const response = await fetchWithAuth(`${API_URL}/bookings/customer/${customerId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

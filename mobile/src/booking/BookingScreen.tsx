@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { API_URL } from '../config/api';
 import { formatCurrency } from '../utils/currency';
 
 interface Vehicle { _id: string; plateNumber: string; make: string; modelName: string; year: number; }
@@ -18,8 +19,8 @@ const BookingScreen = () => {
     const loadData = async () => {
       try {
         const [vehicleRes, serviceRes] = await Promise.all([
-          fetch('http://localhost:5000/api/vehicles'),
-          fetch('http://localhost:5000/api/services/public'),
+          fetch(`${API_URL}/vehicles`),
+          fetch(`${API_URL}/services/public`),
         ]);
         const [vehiclePayload, servicePayload] = await Promise.all([vehicleRes.json().catch(() => ({})), serviceRes.json().catch(() => ({}))]);
         setVehicles(vehiclePayload.data ?? []);
@@ -43,7 +44,7 @@ const BookingScreen = () => {
     }
 
     try {
-      const response = await fetch('http://localhost:5000/api/bookings', {
+      const response = await fetch(`${API_URL}/bookings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

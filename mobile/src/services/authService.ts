@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
+import { API_URL } from '../config/api';
 
 export const AUTH_STORAGE_KEYS = {
   accessToken: 'M_ENT_AUTH_TOKEN',
@@ -74,7 +75,7 @@ const refreshAccessToken = async (): Promise<string | null> => {
   }
 
   try {
-    const response = await fetch('http://localhost:5000/api/auth/refresh', {
+    const response = await fetch(`${API_URL}/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken }),
@@ -217,7 +218,7 @@ export const verifyAuthToken = async (): Promise<AuthVerificationResult> => {
   }
 
   try {
-    const response = await fetchWithAuth('http://localhost:5000/api/auth/profile', {
+    const response = await fetchWithAuth(`${API_URL}/auth/profile`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -241,9 +242,9 @@ export const verifyAuthToken = async (): Promise<AuthVerificationResult> => {
 
 export const authApi = {
   login: async (email: string, password: string) => {
-    return requestAuth('http://localhost:5000/api/auth/customer/login', { email, password });
+    return requestAuth(`${API_URL}/auth/customer/login`, { email, password });
   },
   register: async (fullName: string, email: string, phone: string, password: string) => {
-    return requestAuth('http://localhost:5000/api/auth/customer/register', { fullName, email, phone, password });
+    return requestAuth(`${API_URL}/auth/customer/register`, { fullName, email, phone, password });
   },
 };

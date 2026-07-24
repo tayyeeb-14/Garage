@@ -1,6 +1,6 @@
 import { chromium } from 'playwright';
 
-const apiBase = 'http://localhost:5000/api';
+const apiBase = 'https://m-enterprises-api.onrender.com/api';
 const appUrl = 'http://localhost:8081';
 
 const stamp = Date.now();
