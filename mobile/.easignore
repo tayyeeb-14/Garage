@@ -1,0 +1,10 @@
+# Ignore Android local build artifacts and Gradle caches
+android/.gradle
+android/build
+android/app/build
+node_modules
+.expo
+.expo-export-test
+**/*.log
+**/*.tmp
+**/*.temp
