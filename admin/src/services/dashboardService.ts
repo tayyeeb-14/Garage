@@ -1,4 +1,6 @@
-const API_BASE_URL = 'http://localhost:5000/api/dashboard';
+import { API_BASE } from './apiBase';
+
+const API_BASE_URL = `${API_BASE}/dashboard`;
 
 const getToken = () => {
   return localStorage.getItem('menterprises-admin-token') || sessionStorage.getItem('menterprises-admin-token');

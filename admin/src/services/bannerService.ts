@@ -1,4 +1,6 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api/banners';
+import { API_BASE } from './apiBase';
+
+const API_BASE_URL = `${API_BASE}/banners`;
 
 const request = async <T>(path: string, options: RequestInit = {}): Promise<T> => {
   const isFormData = options.body instanceof FormData;

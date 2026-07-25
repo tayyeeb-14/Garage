@@ -26,9 +26,7 @@ const ServiceForm = ({ initialService, onSave, onCancel }: ServiceFormProps) => 
   const [includesText, setIncludesText] = useState(initialService?.includes?.join('\n') ?? '');
   const [compatibleVehicles, setCompatibleVehicles] = useState(initialService?.compatibleVehicles?.join(', ') ?? '');
   const [faqItems, setFaqItems] = useState<ServiceFaqItem[]>(initialService?.faq?.length ? initialService.faq : [{ question: '', answer: '' }]);
-  const [relatedServiceIds, setRelatedServiceIds] = useState<string[]>(
-    initialService?.relatedServices?.map((item) => (typeof item === 'string' ? item : item._id)) ?? [],
-  );
+  const [relatedServiceIds, setRelatedServiceIds] = useState<string[]>(initialService?.relatedServices ?? []);
   const [availableServices, setAvailableServices] = useState<ServiceItem[]>([]);
   const [isActive, setIsActive] = useState(initialService?.isActive ?? true);
   const [isFeatured, setIsFeatured] = useState(initialService?.isFeatured ?? false);

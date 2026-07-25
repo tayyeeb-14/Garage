@@ -1,4 +1,6 @@
-const API_BASE_URL = 'http://localhost:5000/api/bookings';
+import { API_BASE } from './apiBase';
+
+const API_BASE_URL = `${API_BASE}/bookings`;
 
 const request = async <T>(path: string, options: RequestInit = {}, token?: string): Promise<T> => {
   const response = await fetch(`${API_BASE_URL}${path}`, {

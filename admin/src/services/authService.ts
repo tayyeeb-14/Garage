@@ -1,4 +1,6 @@
-const API_BASE_URL = 'http://localhost:5000/api/auth';
+import { API_BASE } from './apiBase';
+
+const API_BASE_URL = `${API_BASE}/auth`;
 
 const request = async <T>(path: string, options: RequestInit = {}): Promise<T> => {
   const response = await fetch(`${API_BASE_URL}${path}`, {

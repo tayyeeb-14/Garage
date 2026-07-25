@@ -59,7 +59,7 @@ export const SERVICE_CATEGORIES = [
   'Accessories',
 ];
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api';
+import { API_BASE } from './apiBase';
 
 export const serviceService = {
   async list(token: string, params?: Record<string, unknown>) {

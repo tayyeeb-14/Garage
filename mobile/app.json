@@ -3,17 +3,28 @@
     "name": "M Enterprises",
     "slug": "menterprises",
     "scheme": "menterprises",
-    "platforms": ["ios", "android", "web"],
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "sdkVersion": "52.0.0",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "android": {
       "package": "com.menterprises.mobile"
     },
     "ios": {
       "bundleIdentifier": "com.menterprises.mobile"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "5c50f0f0-cf2c-4b3b-8054-5855ada3c721"
+      }
     }
   }
 }
