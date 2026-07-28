@@ -41,7 +41,7 @@ const BookingHistoryScreen = ({ onBookService }: { onBookService?: () => void })
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
-  const [selectedOrder, setSelectedOrder] = useState<DashboardOrder | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<CustomerBooking | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -133,7 +133,7 @@ const BookingHistoryScreen = ({ onBookService }: { onBookService?: () => void })
                 </Text>
               ))}
               <Text style={styles.sectionTitle}>Service Details</Text>
-              {(item.services ?? []).map((service, index) => (
+              {(item.services ?? []).map((service: { name?: string; price?: number }, index: number) => (
                 <Text key={`${service.name}-${index}`} style={styles.detailRow}>• {service.name ?? 'Service'} - {formatCurrency(service.price ?? 0)}</Text>
               ))}
               <Text style={styles.sectionTitle}>Vehicle Details</Text>
