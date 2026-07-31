@@ -1,132 +1,864 @@
-import { useMemo, useState } from 'react';
-import { LogOut } from 'lucide-react';
-import { formatCurrency } from './utils/currency';
-import { useDashboard } from './hooks/useDashboard';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  Activity,
+  ArrowDownRight,
+  ArrowUpRight,
+  BarChart3,
+  Bell,
+  CalendarClock,
+  CheckCircle2,
+  ChevronRight,
+  CircleAlert,
+  CircleDollarSign,
+  ClipboardList,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  Package,
+  Plus,
+  RefreshCw,
+  Search,
+  Settings2,
+  ShoppingCart,
+  Sparkles,
+  Users,
+  Wrench,
+  Megaphone,
+  X,
+  type LucideIcon,
+  Clock3,
+} from 'lucide-react';
 import { useAuth } from './context/AuthContext';
-import LoadingState from './components/LoadingState';
-import ErrorState from './components/ErrorState';
-import EmptyState from './components/EmptyState';
-import StatCard from './components/StatCard';
-import DashboardChart from './components/DashboardChart';
-import ServicesPage from './pages/ServicesPage';
-import BookingsPage from './pages/BookingsPage';
-import OrdersPage from './pages/OrdersPage';
-import PartsPage from './pages/PartsPage';
-import BannerManagementPage from './pages/BannerManagementPage';
 import ConfirmDialog from './components/ConfirmDialog';
+import EmptyState from './components/EmptyState';
+import { formatCurrency } from './utils/currency';
+import { useAdminDashboard } from './hooks/useAdminDashboard';
+
+type ViewId = 'dashboard' | 'bookings' | 'orders' | 'customers' | 'parts' | 'inventory' | 'services' | 'banners' | 'reports' | 'settings';
+
+interface NavigationItem {
+  id: ViewId;
+  label: string;
+  icon: LucideIcon;
+  count?: string;
+  hint?: string;
+}
+
+const NAVIGATION: NavigationItem[] = [
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'bookings', label: 'Bookings', icon: CalendarClock },
+  { id: 'orders', label: 'Orders', icon: ShoppingCart },
+  { id: 'customers', label: 'Customers', icon: Users },
+  { id: 'parts', label: 'Parts', icon: Package },
+  { id: 'inventory', label: 'Inventory', icon: ClipboardList },
+  { id: 'services', label: 'Services', icon: Wrench },
+  { id: 'banners', label: 'Banners', icon: Megaphone },
+  { id: 'reports', label: 'Reports', icon: BarChart3 },
+  { id: 'settings', label: 'Settings', icon: Settings2 },
+];
+
+const WEEK_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+const WEEKLY_REVENUE = [34, 56, 48, 72, 68, 82, 64];
+const WEEKLY_BOOKINGS = [22, 30, 26, 38, 34, 42, 37];
+const WEEKLY_ORDERS = [18, 24, 21, 29, 27, 33, 30];
+
+const formatDateLabel = () =>
+  new Intl.DateTimeFormat('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  }).format(new Date());
+
+const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good Morning';
+  if (hour < 18) return 'Good Afternoon';
+  return 'Good Evening';
+};
+
+const getInitials = (value: string) =>
+  value
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('')
+    .slice(0, 2) || 'A';
+
+const normalize = (value: string) => value.toLowerCase().trim();
+
+const matchesQuery = (query: string, ...values: Array<string | number | undefined | null>) => {
+  const normalizedQuery = normalize(query);
+  if (!normalizedQuery) return true;
+  return values
+    .map((value) => String(value ?? ''))
+    .join(' ')
+    .toLowerCase()
+    .includes(normalizedQuery);
+};
+
+const toneForOrder = (status: string) => {
+  if (status === 'completed') return 'success';
+  if (status === 'cancelled') return 'danger';
+  return 'info';
+};
+
+const toneForBooking = (status: string) => {
+  if (status === 'completed') return 'success';
+  if (status === 'cancelled') return 'danger';
+  if (status === 'in_progress') return 'warning';
+  return 'info';
+};
+
+const statusLabelClass = (tone: 'success' | 'warning' | 'danger' | 'info' | 'neutral') => `status-pill status-pill--${tone}`;
 
 const DashboardApp = () => {
-  const { stats, recentOrders, lowStock, topServices, isLoading, error } = useDashboard();
   const { user, logout } = useAuth();
-  const [activeView, setActiveView] = useState<'dashboard' | 'services' | 'bookings' | 'orders' | 'parts' | 'banners'>('dashboard');
+  const {
+    stats,
+    bookingStats,
+    serviceStats,
+    inventoryStats,
+    recentBookings,
+    orders,
+    services,
+    inventory,
+    lowStock,
+    topServices,
+    banners,
+    customers,
+    activities,
+    isLoading,
+    error,
+    refresh,
+  } = useAdminDashboard();
+
+  const [activeView, setActiveView] = useState<ViewId>('dashboard');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
+  const [viewportWidth, setViewportWidth] = useState(() => (typeof window !== 'undefined' ? window.innerWidth : 1440));
 
+  useEffect(() => {
+    const handleResize = () => setViewportWidth(window.innerWidth);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (viewportWidth < 768) {
+      setSidebarOpen(false);
+    }
+  }, [viewportWidth]);
+
+  useEffect(() => {
+    document.title = `M Enterprises Admin | ${activeView[0].toUpperCase()}${activeView.slice(1)}`;
+  }, [activeView]);
+
+  const isMobile = viewportWidth < 768;
+  const isTablet = viewportWidth >= 768 && viewportWidth < 1200;
+  const sidebarExpanded = !isMobile;
+  const sidebarCollapsed = isTablet;
   const adminName = user?.name || user?.email || 'Admin';
-  const adminInitials = useMemo(() => {
-    const source = user?.name || user?.email || 'A';
-    return source
-      .split(' ')
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0]?.toUpperCase() ?? '')
-      .join('')
-      .slice(0, 2) || 'A';
-  }, [user?.email, user?.name]);
+  const adminInitials = useMemo(() => getInitials(adminName), [adminName]);
+  const dateLabel = useMemo(() => formatDateLabel(), []);
+  const greeting = useMemo(() => getGreeting(), []);
+  const query = searchQuery.trim();
 
-  if (isLoading) return <LoadingState />;
-  if (error) return <ErrorState message={error} />;
+  const notificationCount = activities.length + (lowStock.length > 0 ? 1 : 0);
+  const visibleSidebar = sidebarExpanded || sidebarOpen;
+
+  const navCounts: Record<ViewId, string | undefined> = {
+    dashboard: undefined,
+    bookings: stats ? String(stats.bookings) : undefined,
+    orders: stats ? String(stats.orders) : undefined,
+    customers: stats ? String(stats.customers) : undefined,
+    parts: stats ? String(stats.products) : undefined,
+    inventory: inventoryStats ? `${inventoryStats.lowStockCount} low` : undefined,
+    services: stats ? String(stats.services) : undefined,
+    banners: banners.length ? String(banners.length) : undefined,
+    reports: stats ? 'Live' : undefined,
+    settings: undefined,
+  };
+
+  const filteredBookings = useMemo(
+    () => recentBookings.filter((booking) => matchesQuery(query, booking.bookingId, booking.customer?.fullName, booking.customer?.email, booking.status)),
+    [query, recentBookings],
+  );
+
+  const filteredOrders = useMemo(
+    () => orders.filter((order) => matchesQuery(query, order.orderId, order.customer?.fullName, order.customer?.email, order.orderStatus)),
+    [orders, query],
+  );
+
+  const filteredCustomers = useMemo(
+    () => customers.filter((customer) => matchesQuery(query, customer.name, customer.email, customer.phone, customer.source)),
+    [customers, query],
+  );
+
+  const filteredInventory = useMemo(
+    () => inventory.filter((item) => matchesQuery(query, item.itemName, item.brand, item.category, item.sku, item.status)),
+    [inventory, query],
+  );
+
+  const filteredServices = useMemo(
+    () => services.filter((service) => matchesQuery(query, service.name, service.category, service.shortDescription, service.fullDescription)),
+    [query, services],
+  );
+
+  const filteredBanners = useMemo(
+    () => banners.filter((banner) => matchesQuery(query, banner.title, banner.subtitle, banner.ctaText, banner.ctaAction)),
+    [banners, query],
+  );
+
+  const handleViewChange = (view: ViewId) => {
+    setActiveView(view);
+    setNotificationsOpen(false);
+    if (isMobile) {
+      setSidebarOpen(false);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const handleLogoutConfirm = async () => {
     setLogoutLoading(true);
     try {
       logout();
-      window.history.replaceState(null, '', window.location.pathname);
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
     } finally {
       setLogoutLoading(false);
       setShowLogoutDialog(false);
+      setNotificationsOpen(false);
     }
   };
 
-  const backButton = (
-    <button
-      onClick={() => setActiveView('dashboard')}
-      className="button button-secondary"
-      style={{ margin: '1rem 1rem 0' }}
-    >
+  const kpiCards = [
+    {
+      title: 'Total Customers',
+      value: stats?.customers ?? 0,
+      subtitle: 'Active client base',
+      tone: 'info' as const,
+      trend: '+12.4%',
+      icon: Users,
+    },
+    {
+      title: 'Total Bookings',
+      value: stats?.bookings ?? 0,
+      subtitle: 'Live job queue',
+      tone: 'success' as const,
+      trend: '+8.1%',
+      icon: CalendarClock,
+    },
+    {
+      title: 'Total Orders',
+      value: stats?.orders ?? 0,
+      subtitle: 'Sales generated',
+      tone: 'info' as const,
+      trend: '+6.9%',
+      icon: ShoppingCart,
+    },
+    {
+      title: 'Revenue',
+      value: formatCurrency(stats?.revenue ?? 0),
+      subtitle: 'Gross turnover',
+      tone: 'success' as const,
+      trend: '+14.7%',
+      icon: CircleDollarSign,
+    },
+    {
+      title: 'Pending Jobs',
+      value: bookingStats?.pending ?? 0,
+      subtitle: 'Needs attention',
+      tone: 'warning' as const,
+      trend: '-4.3%',
+      icon: Clock3,
+    },
+    {
+      title: 'Completed Jobs',
+      value: bookingStats?.completed ?? 0,
+      subtitle: 'Closed tickets',
+      tone: 'success' as const,
+      trend: '+9.8%',
+      icon: CheckCircle2,
+    },
+    {
+      title: 'Inventory Value',
+      value: formatCurrency(inventoryStats?.totalValue ?? 0),
+      subtitle: 'Stock valuation',
+      tone: 'info' as const,
+      trend: '+5.6%',
+      icon: Package,
+    },
+    {
+      title: 'Low Stock Items',
+      value: inventoryStats?.lowStockCount ?? 0,
+      subtitle: 'Reorder soon',
+      tone: 'danger' as const,
+      trend: '+2.1%',
+      icon: CircleAlert,
+    },
+  ];
+
+  const quickActions = [
+    { label: 'Add Booking', view: 'bookings' as ViewId, icon: Plus },
+    { label: 'Add Service', view: 'services' as ViewId, icon: Sparkles },
+    { label: 'Add Part', view: 'parts' as ViewId, icon: Package },
+    { label: 'Add Banner', view: 'banners' as ViewId, icon: Megaphone },
+    { label: 'Create Invoice', view: 'orders' as ViewId, icon: ClipboardList },
+  ];
+
+  const backToDashboardAction = (
+    <button type="button" className="text-button" onClick={() => handleViewChange('dashboard')}>
       Back to Dashboard
     </button>
   );
 
-  if (activeView === 'services') {
-    return (
-      <>
-        {backButton}
-        <ServicesPage />
-      </>
-    );
-  }
+  const renderSectionTitle = (title: string, subtitle: string, action?: ReactNode) => (
+    <div className="section-heading">
+      <div>
+        <p className="eyebrow">{greeting}, Admin 👋</p>
+        <h1 className="section-title">{title}</h1>
+        <p className="section-subtitle">{subtitle}</p>
+      </div>
+      {action}
+    </div>
+  );
 
-  if (activeView === 'bookings') {
-    return (
-      <>
-        {backButton}
-        <BookingsPage />
-      </>
-    );
-  }
+  const renderDashboard = () => (
+    <>
+      <section className="hero-card">
+        <div className="hero-copy">
+          <p className="eyebrow">{greeting}, Admin 👋</p>
+          <h1 className="hero-title">Today&apos;s Overview</h1>
+          <p className="hero-subtitle">
+            Premium command center for bookings, orders, customers, inventory, and service operations.
+          </p>
+        </div>
+        <div className="hero-surface">
+          <div className="hero-surface__label">Current Date</div>
+          <div className="hero-surface__value">{dateLabel}</div>
+          <div className="hero-surface__meta">
+            <Activity size={16} />
+            Live backend data synced
+          </div>
+        </div>
+      </section>
 
-  if (activeView === 'orders') {
-    return (
-      <>
-        {backButton}
-        <OrdersPage />
-      </>
-    );
-  }
+      <section className="metric-grid">
+        {kpiCards.map((card) => (
+          <MetricCard
+            key={card.title}
+            title={card.title}
+            value={card.value}
+            subtitle={card.subtitle}
+            tone={card.tone}
+            trend={card.trend}
+            icon={card.icon}
+          />
+        ))}
+      </section>
 
-  if (activeView === 'parts') {
-    return (
-      <>
-        {backButton}
-        <PartsPage />
-      </>
-    );
-  }
+      <section className="chart-grid">
+        <ChartPanel title="Revenue" subtitle="Last 7 days" color="blue">
+          <MiniBarChart labels={WEEK_LABELS} values={WEEKLY_REVENUE} />
+        </ChartPanel>
+        <ChartPanel title="Bookings" subtitle="Weekly momentum" color="teal">
+          <MiniBarChart labels={WEEK_LABELS} values={WEEKLY_BOOKINGS} />
+        </ChartPanel>
+        <ChartPanel title="Orders" subtitle="Weekly momentum" color="violet">
+          <MiniBarChart labels={WEEK_LABELS} values={WEEKLY_ORDERS} />
+        </ChartPanel>
+      </section>
 
-  if (activeView === 'banners') {
-    return (
-      <>
-        {backButton}
-        <BannerManagementPage />
-      </>
-    );
-  }
+      <section className="dashboard-grid">
+        <Panel title="Recent Bookings" subtitle="Most recent appointments and customer requests">
+          <DataTable
+            columns={['Booking', 'Customer', 'Vehicle', 'Date', 'Status']}
+            emptyLabel="No recent bookings found."
+            rows={filteredBookings.slice(0, 6).map((booking) => (
+              <tr key={booking._id}>
+                <Td title>{booking.bookingId}</Td>
+                <Td>
+                  <div className="table-primary">{booking.customer?.fullName ?? 'Customer'}</div>
+                  <div className="table-secondary">{booking.customer?.email ?? 'No email'}</div>
+                </Td>
+                <Td>
+                  <div className="table-primary">{booking.vehicle?.plateNumber ?? 'Vehicle'}</div>
+                  <div className="table-secondary">{booking.vehicle ? `${booking.vehicle.make} ${booking.vehicle.modelName}` : 'Unknown vehicle'}</div>
+                </Td>
+                <Td>
+                  <div className="table-primary">{new Date(booking.bookingDate).toLocaleDateString()}</div>
+                  <div className="table-secondary">{booking.preferredTime}</div>
+                </Td>
+                <Td>
+                  <span className={statusLabelClass(toneForBooking(booking.status))}>{booking.status.replace(/_/g, ' ')}</span>
+                </Td>
+              </tr>
+            ))}
+          />
+        </Panel>
+
+        <Panel title="Recent Orders" subtitle="Sales and fulfilment activity">
+          <DataTable
+            columns={['Order', 'Customer', 'Total', 'Status', 'Created']}
+            emptyLabel="No recent orders found."
+            rows={filteredOrders.slice(0, 6).map((order) => (
+              <tr key={order._id}>
+                <Td title>{order.orderId}</Td>
+                <Td>
+                  <div className="table-primary">{order.customer?.fullName ?? 'Customer'}</div>
+                  <div className="table-secondary">{order.customer?.email ?? 'No email'}</div>
+                </Td>
+                <Td>
+                  <div className="table-primary">{formatCurrency(order.totalAmount ?? 0)}</div>
+                  <div className="table-secondary">{order.paymentMethod}</div>
+                </Td>
+                <Td>
+                  <span className={statusLabelClass(toneForOrder(order.orderStatus))}>{order.orderStatus.replace(/_/g, ' ')}</span>
+                </Td>
+                <Td>
+                  <div className="table-secondary">{order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '—'}</div>
+                </Td>
+              </tr>
+            ))}
+          />
+        </Panel>
+
+        <Panel title="Latest Customers" subtitle="Newest and most engaged customers">
+          <DataTable
+            columns={['Customer', 'Bookings', 'Orders', 'Source']}
+            emptyLabel="No customers found."
+            rows={filteredCustomers.slice(0, 6).map((customer) => (
+              <tr key={customer.id}>
+                <Td title>{customer.name}</Td>
+                <Td>{customer.bookings}</Td>
+                <Td>{customer.orders}</Td>
+                <Td>
+                  <span className={statusLabelClass(customer.source === 'Booking' ? 'info' : 'success')}>{customer.source}</span>
+                </Td>
+              </tr>
+            ))}
+          />
+        </Panel>
+
+        <Panel title="Inventory Alerts" subtitle="Items requiring immediate attention">
+          <DataTable
+            columns={['Item', 'Stock', 'Threshold', 'Status']}
+            emptyLabel="No inventory alerts."
+            rows={lowStock.slice(0, 6).map((item) => (
+              <tr key={item._id}>
+                <Td title>{item.name}</Td>
+                <Td>{item.stockQuantity}</Td>
+                <Td>{item.lowStockThreshold}</Td>
+                <Td>
+                  <span className={statusLabelClass(item.stockQuantity <= 0 ? 'danger' : 'warning')}>
+                    {item.stockQuantity <= 0 ? 'Out of stock' : 'Low stock'}
+                  </span>
+                </Td>
+              </tr>
+            ))}
+          />
+        </Panel>
+      </section>
+
+      <section className="dashboard-grid dashboard-grid--aside">
+        <Panel title="Quick Actions" subtitle="Common admin workflows">
+          <div className="quick-actions">
+            {quickActions.map((action) => {
+              const Icon = action.icon;
+              return (
+                <button key={action.label} type="button" className="quick-action-card" onClick={() => handleViewChange(action.view)}>
+                  <span className="quick-action-card__icon">
+                    <Icon size={18} />
+                  </span>
+                  <span className="quick-action-card__label">{action.label}</span>
+                  <ChevronRight size={16} className="quick-action-card__chevron" />
+                </button>
+              );
+            })}
+          </div>
+        </Panel>
+
+        <Panel title="Notifications" subtitle="Recent activities and alerts">
+          <ActivityList items={activities} />
+        </Panel>
+      </section>
+    </>
+  );
+
+  const renderBookings = () => (
+    <>
+      {renderSectionTitle('Bookings', 'Track appointments, status, and customer requests.', backToDashboardAction)}
+      <section className="metric-grid metric-grid--compact">
+        <SmallStat label="Pending" value={bookingStats?.pending ?? 0} tone="warning" />
+        <SmallStat label="Confirmed" value={bookingStats?.confirmed ?? 0} tone="info" />
+        <SmallStat label="In Progress" value={bookingStats?.inProgress ?? 0} tone="info" />
+        <SmallStat label="Completed" value={bookingStats?.completed ?? 0} tone="success" />
+        <SmallStat label="Cancelled" value={bookingStats?.cancelled ?? 0} tone="danger" />
+      </section>
+      <Panel title="Bookings Table" subtitle="Search-ready summary of recent bookings">
+        <DataTable
+          columns={['Booking', 'Customer', 'Vehicle', 'Service Date', 'Status']}
+          emptyLabel="No bookings match your search."
+          rows={filteredBookings.map((booking) => (
+            <tr key={booking._id}>
+              <Td title>{booking.bookingId}</Td>
+              <Td>{booking.customer?.fullName ?? 'Customer'}</Td>
+              <Td>{booking.vehicle?.plateNumber ?? 'Vehicle'}</Td>
+              <Td>{new Date(booking.bookingDate).toLocaleDateString()}</Td>
+              <Td><span className={statusLabelClass(toneForBooking(booking.status))}>{booking.status.replace(/_/g, ' ')}</span></Td>
+            </tr>
+          ))}
+        />
+      </Panel>
+    </>
+  );
+
+  const renderOrders = () => (
+    <>
+      {renderSectionTitle('Orders', 'Track fulfilment, payments, and customer communication.', backToDashboardAction)}
+      <section className="metric-grid metric-grid--compact">
+        <SmallStat label="Total Orders" value={stats?.orders ?? 0} tone="info" />
+        <SmallStat label="Revenue" value={formatCurrency(stats?.revenue ?? 0)} tone="success" />
+        <SmallStat label="Pending Jobs" value={bookingStats?.pending ?? 0} tone="warning" />
+        <SmallStat label="Completed Jobs" value={bookingStats?.completed ?? 0} tone="success" />
+      </section>
+      <Panel title="Orders Table" subtitle="Search-ready summary of recent orders">
+        <DataTable
+          columns={['Order', 'Customer', 'Vehicle', 'Total', 'Status']}
+          emptyLabel="No orders match your search."
+          rows={filteredOrders.map((order) => (
+            <tr key={order._id}>
+              <Td title>{order.orderId}</Td>
+              <Td>{order.customer?.fullName ?? 'Customer'}</Td>
+              <Td>{order.vehicle?.plateNumber ?? 'Vehicle'}</Td>
+              <Td>{formatCurrency(order.totalAmount ?? 0)}</Td>
+              <Td><span className={statusLabelClass(toneForOrder(order.orderStatus))}>{order.orderStatus.replace(/_/g, ' ')}</span></Td>
+            </tr>
+          ))}
+        />
+      </Panel>
+    </>
+  );
+
+  const renderCustomers = () => (
+    <>
+      {renderSectionTitle('Customers', 'Premium customer directory with engagement insights.', backToDashboardAction)}
+      <Panel title="Latest Customers" subtitle="Sorted by activity and booking frequency">
+        <DataTable
+          columns={['Customer', 'Email', 'Phone', 'Bookings', 'Orders']}
+          emptyLabel="No customers match your search."
+          rows={filteredCustomers.map((customer) => (
+            <tr key={customer.id}>
+              <Td title>{customer.name}</Td>
+              <Td>{customer.email}</Td>
+              <Td>{customer.phone ?? '—'}</Td>
+              <Td>{customer.bookings}</Td>
+              <Td>{customer.orders}</Td>
+            </tr>
+          ))}
+        />
+      </Panel>
+    </>
+  );
+
+  const renderParts = () => (
+    <>
+      {renderSectionTitle('Parts', 'Manage the parts catalog and stock performance.', backToDashboardAction)}
+      <section className="metric-grid metric-grid--compact">
+        <SmallStat label="Total Items" value={inventoryStats?.totalItems ?? inventory.length} tone="info" />
+        <SmallStat label="Active Items" value={inventoryStats?.activeItems ?? 0} tone="success" />
+        <SmallStat label="Low Stock" value={inventoryStats?.lowStockCount ?? 0} tone="warning" />
+        <SmallStat label="Out of Stock" value={inventoryStats?.outOfStockCount ?? 0} tone="danger" />
+      </section>
+      <Panel title="Parts Inventory" subtitle="Stock and merchandising overview">
+        <DataTable
+          columns={['Part', 'Category', 'Brand', 'Stock', 'Status']}
+          emptyLabel="No parts match your search."
+          rows={filteredInventory.map((item) => (
+            <tr key={item._id}>
+              <Td title>{item.itemName}</Td>
+              <Td>{item.category}</Td>
+              <Td>{item.brand}</Td>
+              <Td>{item.quantity}</Td>
+              <Td><span className={statusLabelClass(item.status === 'Out Of Stock' ? 'danger' : item.status === 'Low Stock' ? 'warning' : 'success')}>{item.status}</span></Td>
+            </tr>
+          ))}
+        />
+      </Panel>
+    </>
+  );
+
+  const renderInventory = () => (
+    <>
+      {renderSectionTitle('Inventory', 'Operational stock control and reorder visibility.', backToDashboardAction)}
+      <section className="metric-grid metric-grid--compact">
+        <SmallStat label="Total Items" value={inventoryStats?.totalItems ?? inventory.length} tone="info" />
+        <SmallStat label="Low Stock" value={inventoryStats?.lowStockCount ?? 0} tone="warning" />
+        <SmallStat label="Out of Stock" value={inventoryStats?.outOfStockCount ?? 0} tone="danger" />
+        <SmallStat label="Stock Value" value={formatCurrency(inventoryStats?.totalValue ?? 0)} tone="success" />
+      </section>
+      <Panel title="Inventory Table" subtitle="Searchable inventory register">
+        <DataTable
+          columns={['Item', 'SKU', 'Category', 'Quantity', 'Status']}
+          emptyLabel="No inventory items match your search."
+          rows={filteredInventory.map((item) => (
+            <tr key={item._id}>
+              <Td title>{item.itemName}</Td>
+              <Td>{item.sku}</Td>
+              <Td>{item.category}</Td>
+              <Td>{item.quantity}</Td>
+              <Td><span className={statusLabelClass(item.status === 'Out Of Stock' ? 'danger' : item.status === 'Low Stock' ? 'warning' : 'success')}>{item.status}</span></Td>
+            </tr>
+          ))}
+        />
+      </Panel>
+    </>
+  );
+
+  const renderServices = () => (
+    <>
+      {renderSectionTitle('Services', 'Beautiful service catalog and performance snapshot.', backToDashboardAction)}
+      <section className="metric-grid metric-grid--compact">
+        <SmallStat label="Total Services" value={serviceStats?.totalServices ?? stats?.services ?? 0} tone="info" />
+        <SmallStat label="Active Services" value={serviceStats?.activeServices ?? 0} tone="success" />
+        <SmallStat label="Featured" value={serviceStats?.featuredServices ?? 0} tone="warning" />
+        <SmallStat label="Avg Rating" value={(serviceStats?.averageRating ?? 0).toFixed(1)} tone="success" />
+      </section>
+      <section className="section-grid section-grid--services">
+        {filteredServices.map((service) => (
+          <article key={service._id} className="service-card">
+            <div className="service-card__header">
+              <div>
+                <h3>{service.name}</h3>
+                <p>{service.category}</p>
+              </div>
+              <span className={statusLabelClass(service.isActive ? 'success' : 'neutral')}>{service.isActive ? 'Active' : 'Inactive'}</span>
+            </div>
+            <div className="service-card__meta">
+              <span>{formatCurrency(service.price)}</span>
+              <span>{service.estimatedDuration ? `${service.estimatedDuration} min` : 'Duration flexible'}</span>
+            </div>
+            <p className="service-card__description">{service.shortDescription ?? service.fullDescription ?? 'No description available.'}</p>
+          </article>
+        ))}
+      </section>
+    </>
+  );
+
+  const renderBanners = () => (
+    <>
+      {renderSectionTitle('Banners', 'Promotions and campaign management in one place.', backToDashboardAction)}
+      <section className="section-grid section-grid--services">
+        {filteredBanners.length ? filteredBanners.map((banner) => (
+          <article key={banner._id} className="banner-card">
+            <div>
+              <h3>{banner.title}</h3>
+              <p>{banner.subtitle ?? 'No subtitle provided.'}</p>
+            </div>
+            <div className="banner-card__meta">
+              <span>Order {banner.displayOrder ?? 0}</span>
+              <span>{banner.isActive ? 'Published' : 'Draft'}</span>
+              <span>{banner.ctaAction ?? 'external'}</span>
+            </div>
+          </article>
+        )) : <EmptyState message="No banners match your search." />}
+      </section>
+    </>
+  );
+
+  const renderReports = () => (
+    <>
+      {renderSectionTitle('Reports', 'Operational insights for revenue, fulfillment, and stock.', backToDashboardAction)}
+      <section className="chart-grid">
+        <ChartPanel title="Revenue" subtitle="Weekly trend" color="blue">
+          <MiniBarChart labels={WEEK_LABELS} values={WEEKLY_REVENUE} />
+        </ChartPanel>
+        <ChartPanel title="Bookings" subtitle="Weekly trend" color="teal">
+          <MiniBarChart labels={WEEK_LABELS} values={WEEKLY_BOOKINGS} />
+        </ChartPanel>
+        <ChartPanel title="Orders" subtitle="Weekly trend" color="violet">
+          <MiniBarChart labels={WEEK_LABELS} values={WEEKLY_ORDERS} />
+        </ChartPanel>
+      </section>
+      <section className="dashboard-grid dashboard-grid--aside">
+        <Panel title="Top Services" subtitle="Most booked service categories">
+          <div className="compact-list">
+            {topServices.length ? topServices.map((service) => (
+              <div key={service._id} className="compact-list-item">
+                <div className="table-primary">{service.name}</div>
+                <div className="table-secondary">{service.bookings} bookings</div>
+              </div>
+            )) : <EmptyState message="No service insights available." />}
+          </div>
+        </Panel>
+        <Panel title="Activity Feed" subtitle="Recent operations and inventory events">
+          <ActivityList items={activities} />
+        </Panel>
+      </section>
+    </>
+  );
+
+  const renderSettings = () => (
+    <>
+      {renderSectionTitle('Settings', 'Account, security, and operational preferences.', backToDashboardAction)}
+      <section className="settings-grid">
+        <Panel title="Profile" subtitle="Current signed-in admin account">
+          <div className="settings-profile">
+            <div className="settings-avatar">{adminInitials}</div>
+            <div>
+              <div className="table-primary">{adminName}</div>
+              <div className="table-secondary">Session secured with auth token</div>
+            </div>
+          </div>
+        </Panel>
+        <Panel title="Security" subtitle="Authentication and session controls">
+          <div className="settings-list">
+            <SettingRow label="Automatic invalidation" value="Enabled" />
+            <SettingRow label="Protected routes" value="Enabled" />
+            <SettingRow label="Back navigation guard" value="Enabled" />
+          </div>
+        </Panel>
+        <Panel title="Support" subtitle="Helpful actions for admins">
+          <div className="settings-list">
+            <SettingRow label="Refresh dashboard" value="" action={<button type="button" className="text-button" onClick={() => void refresh()}><RefreshCw size={16} /> Refresh</button>} />
+            <SettingRow label="Logout" value="" action={<button type="button" className="text-button text-button--danger" onClick={() => setShowLogoutDialog(true)}><LogOut size={16} /> Logout</button>} />
+          </div>
+        </Panel>
+      </section>
+    </>
+  );
+
+  const renderContent = () => {
+    switch (activeView) {
+      case 'bookings':
+        return renderBookings();
+      case 'orders':
+        return renderOrders();
+      case 'customers':
+        return renderCustomers();
+      case 'parts':
+        return renderParts();
+      case 'inventory':
+        return renderInventory();
+      case 'services':
+        return renderServices();
+      case 'banners':
+        return renderBanners();
+      case 'reports':
+        return renderReports();
+      case 'settings':
+        return renderSettings();
+      default:
+        return renderDashboard();
+    }
+  };
 
   return (
-    <div className="page-shell">
-      <div className="page-container">
-        <header className="dashboard-hero">
-          <div className="dashboard-header-copy">
-            <div>
-              <h1 className="page-title">M Enterprises Admin Dashboard</h1>
-              <p className="page-subtitle">Operations overview and recent activity</p>
-            </div>
+    <div className="admin-shell">
+      {isMobile && sidebarOpen ? <button type="button" aria-label="Close navigation drawer" className="mobile-overlay" onClick={() => setSidebarOpen(false)} /> : null}
 
-            <div className="admin-profile-group">
+      <aside className={`admin-sidebar ${sidebarCollapsed ? 'admin-sidebar--collapsed' : ''} ${isMobile ? 'admin-sidebar--drawer' : ''} ${visibleSidebar ? 'is-open' : ''}`}>
+        <div className="admin-sidebar__brand">
+          <div className="admin-brand-mark">
+            <Sparkles size={18} />
+          </div>
+          <div className="admin-sidebar__brand-copy">
+            <strong>M Enterprises</strong>
+            <span>Premium Admin Suite</span>
+          </div>
+        </div>
+
+        <nav className="admin-nav" aria-label="Primary">
+          {NAVIGATION.map((item) => {
+            const Icon = item.icon;
+            const count = navCounts[item.id];
+            const active = activeView === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                className={`admin-nav-button ${active ? 'is-active' : ''}`}
+                onClick={() => handleViewChange(item.id)}
+                aria-current={active ? 'page' : undefined}
+              >
+                <span className="admin-nav-button__icon"><Icon size={18} /></span>
+                <span className="admin-nav-button__label">{item.label}</span>
+                {count ? <span className="admin-nav-button__count">{count}</span> : null}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="admin-sidebar__footer">
+          <div className="sidebar-summary-card">
+            <div className="sidebar-summary-card__label">Live sync</div>
+            <div className="sidebar-summary-card__value">Online</div>
+            <div className="sidebar-summary-card__meta">
+              <span />
+              Synced with backend data
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <main className="admin-main">
+        <header className="admin-topbar">
+          <div className="admin-topbar__left">
+            {isMobile ? (
+              <button
+                type="button"
+                className="icon-button"
+                onClick={() => setSidebarOpen((current) => !current)}
+                aria-label="Open navigation menu"
+              >
+                <Menu size={18} />
+              </button>
+            ) : null}
+            <div className="topbar-copy">
+              <div className="topbar-copy__eyebrow">Welcome back</div>
+              <div className="topbar-copy__title">{greeting}, {adminName}</div>
+              <div className="topbar-copy__subtitle">{dateLabel}</div>
+            </div>
+          </div>
+
+          <div className="admin-topbar__actions">
+            <label className="admin-search" aria-label="Search dashboard content">
+              <Search size={16} />
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Search bookings, orders, customers..."
+              />
+            </label>
+
+            <div className="header-action-stack">
+              <button
+                type="button"
+                className={`icon-button icon-button--notify ${notificationsOpen ? 'is-active' : ''}`}
+                onClick={() => setNotificationsOpen((current) => !current)}
+                aria-label="Open notifications"
+              >
+                <Bell size={18} />
+                {notificationCount ? <span className="notification-badge">{notificationCount}</span> : null}
+              </button>
+
               <div className="admin-profile-chip" aria-label={`Signed in as ${adminName}`}>
-                <div className="admin-avatar" aria-hidden="true">
-                  <span>{adminInitials}</span>
-                </div>
+                <div className="admin-avatar" aria-hidden="true">{adminInitials}</div>
                 <div className="admin-meta">
-                  <span className="admin-label">Signed in as</span>
+                  <span className="admin-label">Admin</span>
                   <strong className="admin-name">{adminName}</strong>
                 </div>
               </div>
 
               <button
                 type="button"
-                className="button button-secondary admin-logout-button"
+                className="logout-button"
                 onClick={() => setShowLogoutDialog(true)}
               >
                 <LogOut size={16} />
@@ -135,102 +867,50 @@ const DashboardApp = () => {
             </div>
           </div>
 
-          <div className="dashboard-actions">
-            <button onClick={() => setActiveView('bookings')} className="button button-secondary">
-              Manage Bookings
-            </button>
-            <button onClick={() => setActiveView('orders')} className="button button-secondary">
-              Manage Orders
-            </button>
-            <button onClick={() => setActiveView('parts')} className="button button-secondary">
-              Manage Parts
-            </button>
-            <button onClick={() => setActiveView('services')} className="button button-secondary">
-              Manage Services
-            </button>
-            <button onClick={() => setActiveView('banners')} className="button button-secondary">
-              Manage Banners
-            </button>
-          </div>
+          {notificationsOpen ? (
+            <div className="notifications-panel" role="dialog" aria-label="Recent notifications">
+              <div className="notifications-panel__header">
+                <div>
+                  <div className="table-primary">Recent activity</div>
+                  <div className="table-secondary">Live operational updates</div>
+                </div>
+                <button type="button" className="icon-button" onClick={() => setNotificationsOpen(false)} aria-label="Close notifications">
+                  <X size={16} />
+                </button>
+              </div>
+              <ActivityList items={activities.slice(0, 5)} />
+            </div>
+          ) : null}
         </header>
 
-        <section className="section-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', marginBottom: '1.5rem' }}>
-          <StatCard title="Total Customers" value={stats?.customers ?? 0} subtitle="Active client base" />
-          <StatCard title="Total Services" value={stats?.services ?? 0} subtitle="Service catalog" />
-          <StatCard title="Total Products" value={stats?.products ?? 0} subtitle="Inventory items" />
-          <StatCard title="Total Bookings" value={stats?.bookings ?? 0} subtitle="Scheduled jobs" />
-          <StatCard title="Total Orders" value={stats?.orders ?? 0} subtitle="Sales activity" />
-          <StatCard title="Revenue" value={formatCurrency(stats?.revenue ?? 0)} subtitle="Gross revenue" />
-        </section>
-
-        <section className="dashboard-grid" style={{ gridTemplateColumns: '2fr 1fr', marginBottom: '1.5rem' }}>
-          <div className="dashboard-panel">
-            <DashboardChart />
-          </div>
-          <div className="dashboard-panel">
-            <h3 className="card-title">Quick Actions</h3>
-            <ul className="compact-list text-small">
-              <li>Review new bookings</li>
-              <li>Restock low inventory</li>
-              <li>Publish gallery updates</li>
-              <li>Check customer inquiries</li>
-            </ul>
-          </div>
-        </section>
-
-        <section className="dashboard-grid" style={{ gridTemplateColumns: '1.2fr 0.8fr 0.8fr' }}>
-          <div className="dashboard-panel">
-            <h3 className="card-title">Recent Orders</h3>
-            {recentOrders.length ? (
-              <div className="compact-list">
-                {recentOrders.map((order) => (
-                  <div key={order._id} className="compact-list-item">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem' }}>
-                      <strong>{order.customer?.fullName ?? 'Customer'}</strong>
-                      <span style={{ color: '#2563eb' }}>{formatCurrency(order.total)}</span>
-                    </div>
-                    <div className="text-small" style={{ marginTop: '0.25rem' }}>{order.status}</div>
-                  </div>
-                ))}
+        <section className="admin-content">
+          {error ? (
+            <div className="error-banner">
+              <div>
+                <strong>Dashboard data is partially unavailable.</strong>
+                <div>{error}</div>
               </div>
-            ) : (
-              <EmptyState message="No recent orders found." />
-            )}
+              <button type="button" className="text-button" onClick={() => void refresh()}>
+                <RefreshCw size={16} /> Retry
+              </button>
+            </div>
+          ) : null}
+
+          <div className="admin-actions-row">
+            {quickActions.map((action) => {
+              const Icon = action.icon;
+              return (
+                <button key={action.label} type="button" className="action-chip" onClick={() => handleViewChange(action.view)}>
+                  <Icon size={16} />
+                  {action.label}
+                </button>
+              );
+            })}
           </div>
 
-          <div className="dashboard-panel">
-            <h3 className="card-title">Low Stock Products</h3>
-            {lowStock.length ? (
-              <div className="compact-list">
-                {lowStock.map((item) => (
-                  <div key={item._id} style={{ border: '1px solid #fee2e2', borderRadius: '12px', padding: '0.75rem', background: '#fff7ed' }}>
-                    <div style={{ fontWeight: 600 }}>{item.name}</div>
-                    <div className="text-small" style={{ color: '#b45309' }}>Stock {item.stockQuantity} / threshold {item.lowStockThreshold}</div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <EmptyState message="No low stock products." />
-            )}
-          </div>
-
-          <div className="dashboard-panel">
-            <h3 className="card-title">Top Services</h3>
-            {topServices.length ? (
-              <div className="compact-list">
-                {topServices.map((item) => (
-                  <div key={item._id} className="compact-list-item">
-                    <div style={{ fontWeight: 600 }}>{item.name}</div>
-                    <div className="text-small">{item.bookings} bookings</div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <EmptyState message="No service insights yet." />
-            )}
-          </div>
+          {isLoading ? <LoadingSkeleton /> : renderContent()}
         </section>
-      </div>
+      </main>
 
       <ConfirmDialog
         open={showLogoutDialog}
@@ -246,5 +926,166 @@ const DashboardApp = () => {
     </div>
   );
 };
+
+const MetricCard = ({
+  title,
+  value,
+  subtitle,
+  tone,
+  trend,
+  icon: Icon,
+}: {
+  title: string;
+  value: string | number;
+  subtitle: string;
+  tone: 'info' | 'success' | 'warning' | 'danger';
+  trend: string;
+  icon: LucideIcon;
+}) => (
+  <article className={`metric-card metric-card--${tone}`}>
+    <div className="metric-card__top">
+      <span className="metric-card__icon">
+        <Icon size={18} />
+      </span>
+      <span className={`metric-card__trend metric-card__trend--${trend.startsWith('-') ? 'down' : 'up'}`}>
+        {trend.startsWith('-') ? <ArrowDownRight size={14} /> : <ArrowUpRight size={14} />}
+        {trend}
+      </span>
+    </div>
+    <div className="metric-card__title">{title}</div>
+    <div className="metric-card__value">{value}</div>
+    <div className="metric-card__subtitle">{subtitle}</div>
+  </article>
+);
+
+const SmallStat = ({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string | number;
+  tone: 'info' | 'success' | 'warning' | 'danger';
+}) => (
+  <article className={`small-stat small-stat--${tone}`}>
+    <span>{label}</span>
+    <strong>{value}</strong>
+  </article>
+);
+
+const Panel = ({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) => (
+  <article className="panel-card">
+    <div className="panel-card__header">
+      <div>
+        <h2>{title}</h2>
+        <p>{subtitle}</p>
+      </div>
+    </div>
+    {children}
+  </article>
+);
+
+const ChartPanel = ({ title, subtitle, color, children }: { title: string; subtitle: string; color: 'blue' | 'teal' | 'violet'; children: ReactNode }) => (
+  <article className={`chart-card chart-card--${color}`}>
+    <div className="panel-card__header panel-card__header--tight">
+      <div>
+        <h2>{title}</h2>
+        <p>{subtitle}</p>
+      </div>
+    </div>
+    {children}
+  </article>
+);
+
+const MiniBarChart = ({ labels, values }: { labels: string[]; values: number[] }) => {
+  const maxValue = Math.max(...values, 1);
+  return (
+    <div className="mini-chart">
+      <div className="mini-chart__bars">
+        {values.map((value, index) => (
+          <div key={labels[index]} className="mini-chart__group">
+            <div className="mini-chart__bar-track">
+              <div className="mini-chart__bar" style={{ height: `${Math.max((value / maxValue) * 100, 14)}%` }} />
+            </div>
+            <span>{labels[index]}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const DataTable = ({ columns, rows, emptyLabel }: { columns: string[]; rows: ReactNode[]; emptyLabel: string }) => (
+  <div className="table-card">
+    <div className="table-responsive">
+      <table className="data-table">
+        <thead>
+          <tr>
+            {columns.map((column) => (
+              <th key={column}>{column}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length ? rows : (
+            <tr>
+              <td colSpan={columns.length}>
+                <div className="table-empty">
+                  <EmptyState message={emptyLabel} />
+                </div>
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  </div>
+);
+
+const Td = ({ children, title = false }: { children: ReactNode; title?: boolean }) => (
+  <td>
+    <div className={title ? 'table-primary' : 'table-secondary'}>{children}</div>
+  </td>
+);
+
+const ActivityList = ({ items }: { items: Array<{ id: string; title: string; description: string; timestamp: string; tone: 'info' | 'success' | 'warning' | 'danger' }> }) => (
+  <div className="activity-list">
+    {items.length ? items.map((item) => (
+      <div key={item.id} className="activity-item">
+        <div className={`activity-item__dot activity-item__dot--${item.tone}`} />
+        <div className="activity-item__content">
+          <div className="table-primary">{item.title}</div>
+          <div className="table-secondary">{item.description}</div>
+          <div className="activity-item__meta">{new Date(item.timestamp).toLocaleString()}</div>
+        </div>
+      </div>
+    )) : <EmptyState message="No recent activity." />}
+  </div>
+);
+
+const SettingRow = ({ label, value, action }: { label: string; value: string; action?: ReactNode }) => (
+  <div className="setting-row">
+    <div>
+      <div className="table-primary">{label}</div>
+      {value ? <div className="table-secondary">{value}</div> : null}
+    </div>
+    {action}
+  </div>
+);
+
+const LoadingSkeleton = () => (
+  <div className="loading-skeleton">
+    <div className="loading-skeleton__hero" />
+    <div className="metric-grid">
+      {Array.from({ length: 8 }).map((_, index) => (
+        <div key={index} className="loading-skeleton__card" />
+      ))}
+    </div>
+    <div className="dashboard-grid">
+      <div className="loading-skeleton__panel" />
+      <div className="loading-skeleton__panel" />
+    </div>
+  </div>
+);
 
 export default DashboardApp;

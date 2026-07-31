@@ -9,6 +9,7 @@ export interface DashboardStats {
 
 export interface DashboardOrder {
   _id: string;
+  orderId?: string;
   total: number;
   status: string;
   createdAt: string;

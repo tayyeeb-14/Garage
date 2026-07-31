@@ -37,6 +37,8 @@ export interface BookingItem {
   address: string;
   notes?: string;
   status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export const bookingService = {

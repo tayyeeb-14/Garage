@@ -37,6 +37,8 @@ export interface OrderItem {
   paymentStatus: 'pending' | 'paid';
   orderStatus: 'pending' | 'confirmed' | 'in_service' | 'ready_for_pickup' | 'completed' | 'cancelled';
   notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export const orderService = {
