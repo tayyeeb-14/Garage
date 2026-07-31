@@ -57,6 +57,7 @@ type ScreenMode = 'list' | 'details' | 'booking' | 'success';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const HERO_HEIGHT = 260;
 const CONTENT_HORIZONTAL = spacing.md;
+const BOTTOM_NAV_SPACER = 152;
 
 const isValidDateString = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);
 const isValidTimeString = (value: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
@@ -192,6 +193,8 @@ const MobileServiceScreen = ({
     const index = Math.round(event.nativeEvent.contentOffset.x / SCREEN_WIDTH);
     setHeroIndex(index);
   };
+
+  const bottomContentPadding = BOTTOM_NAV_SPACER;
 
   const resetToList = () => {
     setScreenMode('list');
@@ -460,7 +463,7 @@ const MobileServiceScreen = ({
         data={filteredServices}
         keyExtractor={(item) => item._id}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingBottom: bottomContentPadding }]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
