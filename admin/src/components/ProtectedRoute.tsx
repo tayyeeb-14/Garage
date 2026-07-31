@@ -12,10 +12,7 @@ const ProtectedRoute = ({
   isLoading: boolean;
 }) => {
   if (isLoading) return <LoadingState />;
-  if (!user) {
-    window.location.href = '/';
-    return null;
-  }
+  if (!user) return null;
 
   return <>{children}</>;
 };

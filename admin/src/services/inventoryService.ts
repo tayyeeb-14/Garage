@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { installAxiosAuthInterceptor } from './authSession';
 
 export interface InventoryItem {
   _id: string;
@@ -61,6 +62,8 @@ export const PART_CATEGORIES = [
 ];
 
 import { API_BASE } from './apiBase';
+
+installAxiosAuthInterceptor();
 
 export const inventoryService = {
   async create(token: string, data: FormData) {

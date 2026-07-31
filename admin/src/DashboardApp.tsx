@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { LogOut } from 'lucide-react';
 import { formatCurrency } from './utils/currency';
 import { useDashboard } from './hooks/useDashboard';
+import { useAuth } from './context/AuthContext';
 import LoadingState from './components/LoadingState';
 import ErrorState from './components/ErrorState';
 import EmptyState from './components/EmptyState';
@@ -11,14 +13,40 @@ import BookingsPage from './pages/BookingsPage';
 import OrdersPage from './pages/OrdersPage';
 import PartsPage from './pages/PartsPage';
 import BannerManagementPage from './pages/BannerManagementPage';
+import ConfirmDialog from './components/ConfirmDialog';
 
 const DashboardApp = () => {
   const { stats, recentOrders, lowStock, topServices, isLoading, error } = useDashboard();
+  const { user, logout } = useAuth();
   const [activeView, setActiveView] = useState<'dashboard' | 'services' | 'bookings' | 'orders' | 'parts' | 'banners'>('dashboard');
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [logoutLoading, setLogoutLoading] = useState(false);
 
+  const adminName = user?.name || user?.email || 'Admin';
+  const adminInitials = useMemo(() => {
+    const source = user?.name || user?.email || 'A';
+    return source
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? '')
+      .join('')
+      .slice(0, 2) || 'A';
+  }, [user?.email, user?.name]);
 
   if (isLoading) return <LoadingState />;
   if (error) return <ErrorState message={error} />;
+
+  const handleLogoutConfirm = async () => {
+    setLogoutLoading(true);
+    try {
+      logout();
+      window.history.replaceState(null, '', window.location.pathname);
+    } finally {
+      setLogoutLoading(false);
+      setShowLogoutDialog(false);
+    }
+  };
 
   const backButton = (
     <button
@@ -26,7 +54,7 @@ const DashboardApp = () => {
       className="button button-secondary"
       style={{ margin: '1rem 1rem 0' }}
     >
-      ← Back to Dashboard
+      Back to Dashboard
     </button>
   );
 
@@ -40,11 +68,21 @@ const DashboardApp = () => {
   }
 
   if (activeView === 'bookings') {
-    return <BookingsPage />;
+    return (
+      <>
+        {backButton}
+        <BookingsPage />
+      </>
+    );
   }
 
   if (activeView === 'orders') {
-    return <OrdersPage />;
+    return (
+      <>
+        {backButton}
+        <OrdersPage />
+      </>
+    );
   }
 
   if (activeView === 'parts') {
@@ -69,10 +107,34 @@ const DashboardApp = () => {
     <div className="page-shell">
       <div className="page-container">
         <header className="dashboard-hero">
-          <div>
-            <h1 className="page-title">M Enterprises Admin Dashboard</h1>
-            <p className="page-subtitle">Operations overview and recent activity</p>
+          <div className="dashboard-header-copy">
+            <div>
+              <h1 className="page-title">M Enterprises Admin Dashboard</h1>
+              <p className="page-subtitle">Operations overview and recent activity</p>
+            </div>
+
+            <div className="admin-profile-group">
+              <div className="admin-profile-chip" aria-label={`Signed in as ${adminName}`}>
+                <div className="admin-avatar" aria-hidden="true">
+                  <span>{adminInitials}</span>
+                </div>
+                <div className="admin-meta">
+                  <span className="admin-label">Signed in as</span>
+                  <strong className="admin-name">{adminName}</strong>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="button button-secondary admin-logout-button"
+                onClick={() => setShowLogoutDialog(true)}
+              >
+                <LogOut size={16} />
+                Logout
+              </button>
+            </div>
           </div>
+
           <div className="dashboard-actions">
             <button onClick={() => setActiveView('bookings')} className="button button-secondary">
               Manage Bookings
@@ -169,6 +231,18 @@ const DashboardApp = () => {
           </div>
         </section>
       </div>
+
+      <ConfirmDialog
+        open={showLogoutDialog}
+        title="Logout"
+        message="Are you sure you want to logout?"
+        confirmLabel={logoutLoading ? 'Logging out...' : 'Logout'}
+        cancelLabel="Cancel"
+        danger
+        loading={logoutLoading}
+        onCancel={() => setShowLogoutDialog(false)}
+        onConfirm={() => void handleLogoutConfirm()}
+      />
     </div>
   );
 };

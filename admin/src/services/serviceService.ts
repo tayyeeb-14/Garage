@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { installAxiosAuthInterceptor } from './authSession';
 
 export interface ServiceFaqItem {
   question: string;
@@ -60,6 +61,8 @@ export const SERVICE_CATEGORIES = [
 ];
 
 import { API_BASE } from './apiBase';
+
+installAxiosAuthInterceptor();
 
 export const serviceService = {
   async list(token: string, params?: Record<string, unknown>) {

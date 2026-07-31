@@ -1,4 +1,5 @@
 import { API_BASE } from './apiBase';
+import { invalidateAuthSession, UnauthorizedError } from './authSession';
 
 const API_BASE_URL = `${API_BASE}/dashboard`;
 
@@ -18,6 +19,11 @@ const request = async <T>(path: string): Promise<T> => {
       Authorization: `Bearer ${token}`,
     },
   });
+
+  if (response.status === 401 || response.status === 403) {
+    invalidateAuthSession();
+    throw new UnauthorizedError('Session expired. Please sign in again.');
+  }
 
   if (!response.ok) {
     throw new Error('Failed to fetch dashboard data');
