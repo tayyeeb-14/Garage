@@ -45,6 +45,7 @@ import {
   PublicService,
   Vehicle,
 } from './dashboardService';
+import OneScreenBookingFlow from '../booking/OneScreenBookingFlow';
 
 interface ServicesScreenProps {
   initialServiceId?: string | null;
@@ -119,6 +120,7 @@ const buildGalleryImages = (service: PublicService) => {
 const MobileServiceScreen = ({
   initialServiceId,
   onOpenMyBookings,
+  onNavigateHome,
 }: ServicesScreenProps) => {
   const [services, setServices] = useState<PublicService[]>([]);
   const [loading, setLoading] = useState(true);
@@ -394,13 +396,12 @@ const MobileServiceScreen = ({
 
   if (screenMode === 'booking' && selectedService) {
     return (
-      <BookingFlow
+      <OneScreenBookingFlow
         service={selectedService}
         onBack={() => setScreenMode('details')}
-        onSuccess={(booking) => {
-          setLatestBooking(booking);
-          setScreenMode('success');
-        }}
+        onSuccess={() => {}}
+        onOpenMyBookings={onOpenMyBookings}
+        onGoHome={onNavigateHome}
       />
     );
   }
