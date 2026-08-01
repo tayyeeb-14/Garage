@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Image,
   Linking,
+  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -10,40 +11,36 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import {
-  BadgeCheck,
   Battery,
   Bell,
   BookOpen,
   Car,
+  CalendarDays,
   Circle,
+  CircleStop,
   Clock3,
-  Cog,
   Droplets,
-  Gauge,
-  Gift,
-  LayoutGrid,
-  MapPin,
+  Heart,
+  Menu,
   Navigation,
-  Recycle,
+  PhoneCall,
   Search,
-  Shield,
-  ShieldCheck,
   SlidersHorizontal,
   Sparkles,
   Star,
-  Tag,
   Truck,
   Wrench,
-  CircleStop,
+  X,
 } from 'lucide-react-native';
 import { TabKey } from '../components/BottomTabBar';
 import HeroBannerCarousel from '../components/home/HeroBannerCarousel';
 import IconCircle from '../components/ui/IconCircle';
 import PremiumButton from '../components/ui/PremiumButton';
 import SectionHeader from '../components/ui/SectionHeader';
-import { colors, iconSize, iconStroke, radius, shadow, spacing, typography } from '../theme/tokens';
+import { colors, iconSize, iconStroke, radius, shadow, spacing } from '../theme/tokens';
 import {
   DashboardOrder,
   DashboardStats,
@@ -65,37 +62,31 @@ import { fetchActiveBanners, MobileBanner } from '../services/bannerService';
 const categoryItems = [
   { label: 'Full Service', icon: Wrench },
   { label: 'Oil Change', icon: Droplets },
-  { label: 'Brake', icon: CircleStop },
+  { label: 'Brake Service', icon: CircleStop },
   { label: 'Battery', icon: Battery },
-  { label: 'Engine', icon: Cog },
-  { label: 'Tyre', icon: Circle },
-  { label: 'Washing', icon: Sparkles },
-  { label: 'Pickup', icon: Truck },
-  { label: 'Scrap', icon: Recycle },
-  { label: 'View All', icon: LayoutGrid },
-];
-
-const whyChooseUs = [
-  { title: 'Expert Mechanics', description: 'Certified technicians for every service.', icon: Wrench },
-  { title: 'Genuine Parts', description: 'Original components you can trust.', icon: Shield },
-  { title: 'Transparent Pricing', description: 'Clear quotes with no hidden fees.', icon: Tag },
-  { title: 'Doorstep Pickup', description: 'We collect and return your vehicle.', icon: Truck },
-  { title: 'Fast Service', description: 'Quick turnaround without compromise.', icon: Clock3 },
-  { title: 'Warranty', description: 'Work backed by reliable aftercare.', icon: ShieldCheck },
+  { label: 'Tyres', icon: Circle },
+  { label: 'Wash & Cleaning', icon: Sparkles },
 ];
 
 const quickActions = [
-  { label: 'Book Service', icon: Wrench, tab: 'services' as TabKey },
-  { label: 'Bookings', icon: BookOpen, openBookings: true },
-  { label: 'Track Service', icon: Navigation, openBookings: true },
-  { label: 'Offers', icon: Gift, tab: null },
+  { label: 'Book Service', subtitle: 'Schedule now', icon: Wrench, backgroundColor: colors.primarySoft, iconColor: colors.primaryBright, tab: 'services' as TabKey },
+  { label: 'My Bookings', subtitle: 'View all', icon: CalendarDays, backgroundColor: colors.successSoft, iconColor: colors.success, openBookings: true },
+  { label: 'Track Order', subtitle: 'Live status', icon: Navigation, backgroundColor: colors.accent, iconColor: colors.primaryBright, openBookings: true },
+  { label: 'Emergency', subtitle: '24x7 Help', icon: PhoneCall, backgroundColor: colors.warningSoft, iconColor: colors.warning, emergency: true },
 ];
+
+const normalizeText = (value: string) => value.toLowerCase().trim();
+
+const uniqueValues = (values: Array<string | undefined | null>) =>
+  Array.from(new Set(values.filter((value): value is string => Boolean(value && value.trim().length))));
 
 type HomeDashboardProps = {
   onNavigateTab?: (tab: TabKey) => void;
   onOpenMyBookings?: () => void;
   onOpenServiceDetail?: (serviceId: string) => void;
 };
+
+type FilterType = 'category' | 'brand' | 'vehicle' | 'price' | 'availability';
 
 const HomeDashboard = ({ onNavigateTab, onOpenMyBookings, onOpenServiceDetail }: HomeDashboardProps) => {
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -110,19 +101,29 @@ const HomeDashboard = ({ onNavigateTab, onOpenMyBookings, onOpenServiceDetail }:
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
-  const [searchText, setSearchText] = useState('');
   const [bannerIndex, setBannerIndex] = useState(0);
   const [banners, setBanners] = useState<MobileBanner[]>([]);
+  const [searchText, setSearchText] = useState('');
+  const [debouncedSearchText, setDebouncedSearchText] = useState('');
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [isFilterSheetVisible, setIsFilterSheetVisible] = useState(false);
+  const [activeCategory, setActiveCategory] = useState('');
+  const [activeBrand, setActiveBrand] = useState('');
+  const [activeVehicleFilter, setActiveVehicleFilter] = useState('');
+  const [activePriceFilter, setActivePriceFilter] = useState('');
+  const [activeAvailabilityFilter, setActiveAvailabilityFilter] = useState('');
   const scrollRef = useRef<ScrollView>(null);
-  const offerSectionY = useRef(0);
+  const { width } = useWindowDimensions();
+  const isWide = width >= 768;
 
   const loadDashboard = async (isRefresh = false) => {
     setError('');
-    const loadStartTime = Date.now();
+    const startedAt = Date.now();
     try {
       if (!isRefresh) {
         setLoading(true);
       }
+
       const [userProfile, serviceList, topServiceList, productList, vehicleList, orderList, dashboardStats, activeBanners] = await Promise.all([
         fetchUserProfile(),
         fetchPublicServices(),
@@ -143,21 +144,20 @@ const HomeDashboard = ({ onNavigateTab, onOpenMyBookings, onOpenServiceDetail }:
       setStats(dashboardStats);
       setBanners(activeBanners);
 
-      const activeBooking = orderList.find((order) =>
-        ['pending', 'confirmed', 'in_service', 'ready_for_pickup'].includes(order.orderStatus),
-      );
+      const activeBooking = orderList.find((order) => ['pending', 'confirmed', 'in_service', 'ready_for_pickup'].includes(order.orderStatus));
       setCurrentBooking(activeBooking ?? null);
       setNotificationCount(orderList.filter((order) => !['completed', 'cancelled'].includes(order.orderStatus)).length);
     } catch {
       setError('Unable to load dashboard data. Pull to refresh or try again.');
     } finally {
-      const elapsed = Date.now() - loadStartTime;
+      const elapsed = Date.now() - startedAt;
       const minimumDelay = 400;
-      if (elapsed < minimumDelay) {
+      const remaining = minimumDelay - elapsed;
+      if (remaining > 0) {
         setTimeout(() => {
           setLoading(false);
           setRefreshing(false);
-        }, minimumDelay - elapsed);
+        }, remaining);
       } else {
         setLoading(false);
         setRefreshing(false);
@@ -169,6 +169,28 @@ const HomeDashboard = ({ onNavigateTab, onOpenMyBookings, onOpenServiceDetail }:
     void loadDashboard();
   }, []);
 
+  useEffect(() => {
+    if (!searchText.trim()) {
+      setSearchLoading(false);
+      setDebouncedSearchText('');
+      return undefined;
+    }
+
+    setSearchLoading(true);
+    const timeout = setTimeout(() => {
+      setDebouncedSearchText(searchText);
+      setSearchLoading(false);
+    }, 260);
+
+    return () => clearTimeout(timeout);
+  }, [searchText]);
+
+  useEffect(() => {
+    if (!banners.length) return undefined;
+    const timer = setInterval(() => setBannerIndex((value) => (value + 1) % banners.length), 4500);
+    return () => clearInterval(timer);
+  }, [banners.length]);
+
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good Morning';
@@ -178,7 +200,7 @@ const HomeDashboard = ({ onNavigateTab, onOpenMyBookings, onOpenServiceDetail }:
 
   const activeVehicle = vehicles[0];
   const activeBanner = banners[bannerIndex] ?? null;
-  const offerBanner = banners.length > 1 ? banners[(bannerIndex + 1) % banners.length] : activeBanner;
+  const heroFallbackImage = topServices[0]?.thumbnailImage ?? services[0]?.thumbnailImage;
 
   const nextServiceDate = useMemo(() => {
     if (!activeVehicle?.lastServiceDate) return null;
@@ -189,38 +211,126 @@ const HomeDashboard = ({ onNavigateTab, onOpenMyBookings, onOpenServiceDetail }:
     return nextDate;
   }, [activeVehicle]);
 
-  const daysUntilReminder = useMemo(() => {
-    if (!nextServiceDate) return null;
-    return Math.max(0, Math.ceil((nextServiceDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
-  }, [nextServiceDate]);
+  const activeVehicleLabel = useMemo(() => {
+    if (!activeVehicle) return '';
+    return normalizeText(`${activeVehicle.make} ${activeVehicle.modelName}`);
+  }, [activeVehicle]);
 
-  const filteredServices = useMemo(
-    () => services.filter((service) => service.name.toLowerCase().includes(searchText.toLowerCase())),
-    [searchText, services],
+  const searchQuery = normalizeText(debouncedSearchText);
+  const hasSearchQuery = searchQuery.length > 0;
+
+  const searchableServices = useMemo(() => {
+    const combined = [...topServices, ...services];
+    return combined.filter((service, index, list) => list.findIndex((item) => item._id === service._id) === index);
+  }, [services, topServices]);
+
+  const filteredServices = useMemo(() => {
+    const source = hasSearchQuery || activeCategory || activeVehicleFilter || activePriceFilter ? searchableServices : topServices.length ? topServices : services.filter((item) => item.isFeatured || item.popular || item.featured).slice(0, 6);
+
+    return source.filter((service) => {
+      const textBlob = normalizeText(
+        [
+          service.name,
+          service.description,
+          service.shortDescription,
+          service.fullDescription,
+          service.category,
+          ...(service.compatibleVehicles ?? []),
+        ]
+          .filter(Boolean)
+          .join(' '),
+      );
+
+      const matchesQuery = !hasSearchQuery || textBlob.includes(searchQuery);
+      const matchesCategory = !activeCategory || normalizeText(service.category ?? '').includes(normalizeText(activeCategory));
+      const matchesVehicle =
+        !activeVehicleFilter ||
+        textBlob.includes(normalizeText(activeVehicleFilter)) ||
+        (activeVehicleLabel.length > 0 && textBlob.includes(activeVehicleLabel));
+      const matchesPrice =
+        !activePriceFilter ||
+        (activePriceFilter === 'Under ₹500' && service.price < 500) ||
+        (activePriceFilter === '₹500 - ₹1000' && service.price >= 500 && service.price <= 1000) ||
+        (activePriceFilter === 'Above ₹1000' && service.price > 1000);
+
+      return matchesQuery && matchesCategory && matchesVehicle && matchesPrice;
+    });
+  }, [activeCategory, activePriceFilter, activeVehicleFilter, activeVehicleLabel, hasSearchQuery, searchQuery, searchableServices, services, topServices]);
+
+  const filteredParts = useMemo(() => {
+    const source = hasSearchQuery || activeBrand || activeAvailabilityFilter ? spareParts : spareParts;
+
+    return source.filter((part) => {
+      const textBlob = normalizeText([part.itemName, part.brand, part.category, part.sku, part.shortDescription, part.description].filter(Boolean).join(' '));
+      const matchesQuery = !hasSearchQuery || textBlob.includes(searchQuery);
+      const matchesBrand = !activeBrand || normalizeText(part.brand).includes(normalizeText(activeBrand));
+      const matchesAvailability =
+        !activeAvailabilityFilter ||
+        (activeAvailabilityFilter === 'All' && true) ||
+        (activeAvailabilityFilter === 'In Stock' && part.status === 'In Stock') ||
+        (activeAvailabilityFilter === 'Low Stock' && part.status === 'Low Stock');
+      return matchesQuery && matchesBrand && matchesAvailability;
+    });
+  }, [activeAvailabilityFilter, activeBrand, hasSearchQuery, searchQuery, spareParts]);
+
+  const filteredCategories = useMemo(() => {
+    if (!hasSearchQuery) return categoryItems;
+    return categoryItems.filter((item) => normalizeText(item.label).includes(searchQuery));
+  }, [hasSearchQuery, searchQuery]);
+
+  const searchSuggestions = useMemo(() => {
+    if (!hasSearchQuery) return [];
+
+    const serviceSuggestions = filteredServices.slice(0, 2).map((service) => service.name);
+    const partSuggestions = filteredParts.slice(0, 2).map((part) => part.itemName);
+    const categorySuggestions = filteredCategories.slice(0, 2).map((item) => item.label);
+    const brandSuggestions = uniqueValues(filteredParts.slice(0, 4).map((part) => part.brand));
+
+    return uniqueValues([...serviceSuggestions, ...partSuggestions, ...categorySuggestions, ...brandSuggestions]).slice(0, 6);
+  }, [filteredCategories, filteredParts, filteredServices, hasSearchQuery]);
+
+  const searchResultsCount = filteredServices.length + filteredParts.length + filteredCategories.length;
+
+  const visibleServices = filteredServices.slice(0, 8);
+  const visibleParts = filteredParts.slice(0, 8);
+  const visibleCategories = filteredCategories.slice(0, 6);
+
+  const filterCategories = useMemo(
+    () => uniqueValues([...categoryItems.map((item) => item.label), ...services.map((service) => service.category)]).slice(0, 8),
+    [services],
   );
 
-  const popularServices = useMemo(() => {
-    if (searchText.trim().length) return filteredServices;
-    if (topServices.length) return topServices;
-    return services.filter((item) => item.isFeatured || item.popular || item.featured).slice(0, 6);
-  }, [filteredServices, searchText, services, topServices]);
+  const filterBrands = useMemo(() => uniqueValues(spareParts.map((part) => part.brand)).slice(0, 8), [spareParts]);
+  const filterVehicles = useMemo(
+    () =>
+      uniqueValues([
+        activeVehicle ? `${activeVehicle.make} ${activeVehicle.modelName}` : undefined,
+        ...vehicles.map((vehicle) => `${vehicle.make} ${vehicle.modelName}`),
+      ]).slice(0, 8),
+    [activeVehicle, vehicles],
+  );
+  const filterPriceOptions = ['Under ₹500', '₹500 - ₹1000', 'Above ₹1000'];
+  const filterAvailabilityOptions = ['All', 'In Stock', 'Low Stock'];
 
-  const heroFallbackImage = popularServices[0]?.thumbnailImage;
-
-  useEffect(() => {
-    if (!banners.length) return undefined;
-    const timer = setInterval(() => setBannerIndex((value) => (value + 1) % banners.length), 4500);
-    return () => clearInterval(timer);
-  }, [banners.length]);
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    void loadDashboard(true);
+  const resetSearchAndFilters = () => {
+    setSearchText('');
+    setDebouncedSearchText('');
+    setActiveCategory('');
+    setActiveBrand('');
+    setActiveVehicleFilter('');
+    setActivePriceFilter('');
+    setActiveAvailabilityFilter('');
   };
 
-  const scrollToOffers = () => {
-    scrollRef.current?.scrollTo({ y: offerSectionY.current, animated: true });
+  const handleFilterSelect = (type: FilterType, value: string) => {
+    if (type === 'category') setActiveCategory(value === activeCategory ? '' : value);
+    if (type === 'brand') setActiveBrand(value === activeBrand ? '' : value);
+    if (type === 'vehicle') setActiveVehicleFilter(value === activeVehicleFilter ? '' : value);
+    if (type === 'price') setActivePriceFilter(value === activePriceFilter ? '' : value);
+    if (type === 'availability') setActiveAvailabilityFilter(value === activeAvailabilityFilter ? '' : value);
   };
+
+  const hasActiveFilters = Boolean(activeCategory || activeBrand || activeVehicleFilter || activePriceFilter || activeAvailabilityFilter);
 
   const formatServiceDuration = (service: PublicService) => {
     const minutes = service.estimatedDuration ?? 60;
@@ -230,17 +340,35 @@ const HomeDashboard = ({ onNavigateTab, onOpenMyBookings, onOpenServiceDetail }:
     return remainder ? `${hours}h ${remainder}m` : `${hours}h`;
   };
 
-  const reviewOrders = useMemo(
-    () => recentOrders.filter((order) => order.orderStatus === 'completed').slice(0, 3),
-    [recentOrders],
-  );
+  const onRefresh = () => {
+    setRefreshing(true);
+    void loadDashboard(true);
+  };
+
+  const openEmergency = () => void Linking.openURL('tel:+911800000000');
+  const openWhatsApp = () => void Linking.openURL('https://wa.me/911800000000');
+
+  const handleQuickAction = (action: (typeof quickActions)[number]) => {
+    if (action.emergency) {
+      openEmergency();
+      return;
+    }
+    if (action.openBookings) {
+      onOpenMyBookings?.();
+      return;
+    }
+    if (action.tab) {
+      onNavigateTab?.(action.tab);
+    }
+  };
 
   return (
-    <View style={styles.container}>
+    <View style={styles.screen}>
       <ScrollView
         ref={scrollRef}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primaryBright} />}
       >
         {error ? (
@@ -249,66 +377,115 @@ const HomeDashboard = ({ onNavigateTab, onOpenMyBookings, onOpenServiceDetail }:
           </View>
         ) : null}
 
-        {/* 1. Header */}
         <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.greeting}>{greeting}</Text>
-            <Text style={styles.userName}>{profile?.fullName ?? 'Customer'}</Text>
-            <Pressable style={styles.locationRow}>
-              <IconCircle size={28} backgroundColor={colors.secondary}>
-                <MapPin size={14} color={colors.primaryBright} strokeWidth={iconStroke} />
-              </IconCircle>
-              <View style={styles.locationTextWrap}>
-                <Text style={styles.locationLabel}>Service location</Text>
-                <Text style={styles.locationValue} numberOfLines={1}>
-                  {profile?.phone ? `Registered • ${profile.phone}` : 'Doorstep garage service'}
-                </Text>
+          <Pressable
+            style={({ pressed }) => [styles.headerIconButton, pressed && styles.pressed]}
+            onPress={() => onNavigateTab?.('profile')}
+            accessibilityRole="button"
+            accessibilityLabel="Open menu"
+          >
+            <Menu size={24} color={colors.text} strokeWidth={2} />
+          </Pressable>
+
+          <View style={styles.headerCopy}>
+            <Text style={styles.greeting}>{`${greeting} 👋`}</Text>
+            <Text style={styles.brandName}>M Enterprises</Text>
+          </View>
+
+          <Pressable
+            style={({ pressed }) => [styles.headerIconButton, pressed && styles.pressed]}
+            onPress={() => onNavigateTab?.('notifications')}
+            accessibilityRole="button"
+            accessibilityLabel="Open notifications"
+          >
+            <Bell size={24} color={colors.text} strokeWidth={2} />
+            {notificationCount > 0 ? (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{notificationCount > 9 ? '9+' : notificationCount}</Text>
               </View>
-            </Pressable>
-          </View>
-          <View style={styles.headerActions}>
-            <Pressable
-              style={({ pressed }) => [styles.headerIconBtn, pressed && styles.pressed]}
-              onPress={() => onNavigateTab?.('notifications')}
-            >
-              <Bell size={iconSize} color={colors.text} strokeWidth={iconStroke} />
-              {notificationCount > 0 ? (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{notificationCount > 9 ? '9+' : notificationCount}</Text>
-                </View>
-              ) : null}
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [styles.avatar, pressed && styles.pressed]}
-              onPress={() => onNavigateTab?.('profile')}
-            >
-              <Text style={styles.avatarText}>{profile?.fullName?.[0]?.toUpperCase() ?? 'M'}</Text>
-            </Pressable>
-          </View>
+            ) : null}
+          </Pressable>
         </View>
 
-        {/* 2. Search Bar */}
         <View style={styles.searchSection}>
           <View style={styles.searchBar}>
-            <Search size={iconSize} color={colors.textMuted} strokeWidth={iconStroke} />
+            <Search size={22} color={colors.textLight} strokeWidth={2.2} />
             <TextInput
               placeholder="Search services, parts..."
               placeholderTextColor={colors.textLight}
               style={styles.searchInput}
               value={searchText}
               onChangeText={setSearchText}
+              autoCorrect={false}
+              autoCapitalize="none"
+              returnKeyType="search"
+              keyboardAppearance="light"
+              clearButtonMode="never"
+              enablesReturnKeyAutomatically
             />
-            <Pressable style={({ pressed }) => [styles.filterBtn, pressed && styles.pressed]}>
-              <SlidersHorizontal size={18} color={colors.primaryBright} strokeWidth={iconStroke} />
+            {searchText.length > 0 ? (
+              <Pressable
+                style={({ pressed }) => [styles.clearButton, pressed && styles.pressed]}
+                onPress={resetSearchAndFilters}
+                accessibilityRole="button"
+                accessibilityLabel="Clear search"
+              >
+                <X size={16} color={colors.textLight} strokeWidth={2.4} />
+              </Pressable>
+            ) : searchLoading ? (
+              <ActivityIndicator size="small" color={colors.primaryBright} style={styles.searchLoading} />
+            ) : null}
+            <Pressable
+              style={({ pressed }) => [styles.filterButton, pressed && styles.pressed]}
+              onPress={() => setIsFilterSheetVisible(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Open filters"
+            >
+              <SlidersHorizontal size={18} color={colors.primaryBright} strokeWidth={2.2} />
             </Pressable>
           </View>
-          <Pressable style={({ pressed }) => [styles.locationChip, pressed && styles.pressed]}>
-            <MapPin size={14} color={colors.primaryBright} strokeWidth={iconStroke} />
-            <Text style={styles.locationChipText}>Near me</Text>
-          </Pressable>
+
+          {searchText.trim().length > 0 ? (
+            <View style={styles.searchSurface}>
+              <View style={styles.searchSurfaceHeader}>
+                <Text style={styles.searchSurfaceTitle}>
+                  {searchLoading ? 'Searching...' : searchResultsCount > 0 ? `${searchResultsCount} results found` : 'No results found'}
+                </Text>
+                {hasActiveFilters ? (
+                  <Pressable onPress={resetSearchAndFilters} style={styles.clearFiltersButton}>
+                    <Text style={styles.clearFiltersButtonText}>Reset</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+
+              {searchLoading ? (
+                <View style={styles.searchLoadingRow}>
+                  <ActivityIndicator size="small" color={colors.primaryBright} />
+                  <Text style={styles.searchLoadingText}>Updating services and parts...</Text>
+                </View>
+              ) : searchResultsCount > 0 ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.suggestionRail}>
+                  {searchSuggestions.map((suggestion) => (
+                    <Pressable
+                      key={suggestion}
+                      style={({ pressed }) => [styles.suggestionChip, pressed && styles.pressed]}
+                      onPress={() => setSearchText(suggestion)}
+                    >
+                      <Text style={styles.suggestionChipText}>{suggestion}</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              ) : (
+                <View style={styles.searchEmptyState}>
+                  <Text style={styles.searchEmptyTitle}>Nothing matched that search</Text>
+                  <Text style={styles.searchEmptyText}>Try a service, spare part, category, or brand.</Text>
+                  <PremiumButton label="Clear Search" variant="secondary" compact onPress={resetSearchAndFilters} />
+                </View>
+              )}
+            </View>
+          ) : null}
         </View>
 
-        {/* 3. Hero Banner */}
         <HeroBannerCarousel
           banners={banners}
           bannerIndex={bannerIndex}
@@ -317,199 +494,175 @@ const HomeDashboard = ({ onNavigateTab, onOpenMyBookings, onOpenServiceDetail }:
           onBookPress={() => onNavigateTab?.('services')}
         />
 
-        {/* 4. Quick Actions */}
         <View style={styles.section}>
-          <View style={styles.quickActionsGrid}>
+          <View style={styles.quickActionGrid}>
             {quickActions.map((action) => {
               const Icon = action.icon;
               return (
                 <Pressable
                   key={action.label}
-                  style={({ pressed }) => [styles.quickActionCard, pressed && styles.pressed]}
-                  onPress={() => {
-                    if (action.openBookings) onOpenMyBookings?.();
-                    else if (action.tab) onNavigateTab?.(action.tab);
-                    else scrollToOffers();
-                  }}
+                  style={({ pressed }) => [
+                    styles.quickActionCard,
+                    { flexBasis: isWide ? '23%' : '48%' },
+                    pressed && styles.pressed,
+                  ]}
+                  onPress={() => handleQuickAction(action)}
                 >
-                  <IconCircle size={58} backgroundColor={colors.primarySoft}>
-                    <Icon size={26} color={colors.primaryBright} strokeWidth={iconStroke} />
+                  <IconCircle size={56} backgroundColor={action.backgroundColor}>
+                    <Icon size={24} color={action.iconColor} strokeWidth={2} />
                   </IconCircle>
-                  <Text style={styles.quickActionLabel}>{action.label}</Text>
+                  <Text style={styles.quickActionTitle}>{action.label}</Text>
+                  <Text style={styles.quickActionSubtitle}>{action.subtitle}</Text>
                 </Pressable>
               );
             })}
           </View>
         </View>
 
-        {/* 5. Service Categories */}
         <View style={styles.section}>
-          <SectionHeader title="Service Categories" actionLabel="View all" />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
-            {categoryItems.map((category) => {
+          <SectionHeader title="Service Categories" actionLabel="View all" onActionPress={() => onNavigateTab?.('services')} />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalRail}>
+            {visibleCategories.map((category) => {
               const Icon = category.icon;
               return (
                 <Pressable
                   key={category.label}
-                  style={({ pressed }) => [styles.categoryCard, pressed && styles.pressed]}
+                  style={({ pressed }) => [styles.categoryCard, { width: isWide ? 116 : 108 }, pressed && styles.pressed]}
                   onPress={() => onNavigateTab?.('services')}
                 >
-                  <IconCircle size={60} backgroundColor={colors.primarySoft}>
-                    <Icon size={26} color={colors.primaryBright} strokeWidth={iconStroke} />
+                  <IconCircle size={56} backgroundColor={colors.surfaceSoft}>
+                    <Icon size={24} color={colors.text} strokeWidth={2} />
                   </IconCircle>
-                  <Text style={styles.categoryLabel}>{category.label}</Text>
+                  <Text style={styles.categoryLabel} numberOfLines={2}>
+                    {category.label}
+                  </Text>
                 </Pressable>
               );
             })}
           </ScrollView>
         </View>
 
-        {/* 6. My Vehicle */}
         <View style={styles.section}>
-          <SectionHeader title="My Vehicle" />
+          <SectionHeader title="My Vehicle" actionLabel="View Details" onActionPress={() => onNavigateTab?.('profile')} />
           {loading ? (
-            <View style={styles.skeletonCard}>
-              <View style={styles.skeletonLineLarge} />
-              <View style={styles.skeletonLineMedium} />
-              <View style={styles.skeletonLineSmall} />
+            <View style={styles.vehicleSkeleton}>
+              <View style={styles.skeletonVehicleGraphic} />
+              <View style={styles.skeletonVehicleLines}>
+                <View style={styles.skeletonLineLong} />
+                <View style={styles.skeletonLineMedium} />
+                <View style={styles.skeletonLineShort} />
+              </View>
             </View>
           ) : activeVehicle ? (
             <View style={styles.vehicleCard}>
-              <View style={styles.vehicleImageSection}>
-                <View style={styles.vehicleImageBg}>
-                  <Car size={48} color={colors.primaryBright} strokeWidth={iconStroke} />
+              <View style={styles.vehicleGraphic}>
+                <View style={styles.vehicleGraphicCircle}>
+                  <Car size={44} color={colors.primaryBright} strokeWidth={2} />
                 </View>
-                <View style={styles.vehicleStatusBadge}>
-                  <Text style={styles.vehicleStatusText}>Primary</Text>
+                <View style={styles.primaryBadge}>
+                  <Text style={styles.primaryBadgeText}>Primary</Text>
                 </View>
               </View>
+
               <View style={styles.vehicleBody}>
-                <Text style={styles.vehicleName}>{`${activeVehicle.make} ${activeVehicle.modelName}`}</Text>
-                <View style={styles.badgeRow}>
-                  <View style={styles.infoBadge}>
-                    <Text style={styles.infoBadgeText}>{activeVehicle.plateNumber}</Text>
+                <View style={styles.vehicleTitleRow}>
+                  <Text style={styles.vehicleTitle} numberOfLines={1}>
+                    {`${activeVehicle.make} ${activeVehicle.modelName}`}
+                  </Text>
+                </View>
+
+                <View style={styles.vehicleMetaPills}>
+                  <View style={styles.vehicleMetaPill}>
+                    <Text style={styles.vehicleMetaPillText}>{activeVehicle.plateNumber}</Text>
                   </View>
                   {activeVehicle.year ? (
-                    <View style={[styles.infoBadge, styles.infoBadgeMuted]}>
-                      <Text style={styles.infoBadgeTextMuted}>{activeVehicle.year}</Text>
+                    <View style={styles.vehicleMetaPillMuted}>
+                      <Text style={styles.vehicleMetaPillMutedText}>{activeVehicle.year}</Text>
                     </View>
                   ) : null}
                 </View>
-                <View style={styles.vehicleMetaRow}>
-                  <Clock3 size={14} color={colors.textMuted} strokeWidth={iconStroke} />
-                  <Text style={styles.vehicleMeta}>
-                    Last service: {activeVehicle.lastServiceDate
-                      ? new Date(activeVehicle.lastServiceDate).toLocaleDateString()
-                      : 'Not recorded'}
+
+                <View style={styles.vehicleInfoRow}>
+                  <Clock3 size={14} color={colors.textMuted} strokeWidth={2} />
+                  <Text style={styles.vehicleInfoText}>
+                    Last Service: {activeVehicle.lastServiceDate ? new Date(activeVehicle.lastServiceDate).toLocaleDateString() : 'Not recorded'}
                   </Text>
                 </View>
-                <View style={styles.vehicleMetaRow}>
-                  <Gauge size={14} color={colors.textMuted} strokeWidth={iconStroke} />
-                  <Text style={styles.vehicleMeta}>
-                    Next reminder: {nextServiceDate ? nextServiceDate.toLocaleDateString() : 'Schedule soon'}
+                <View style={styles.vehicleInfoRow}>
+                  <Clock3 size={14} color={colors.textMuted} strokeWidth={2} />
+                  <Text style={styles.vehicleInfoText}>
+                    Next Service: {nextServiceDate ? nextServiceDate.toLocaleDateString() : 'Schedule soon'}
                   </Text>
                 </View>
-                <PremiumButton
-                  label="Book Again"
-                  compact
-                  onPress={() => onNavigateTab?.('services')}
-                  style={styles.vehicleCta}
-                />
+              </View>
+
+              <View style={styles.vehicleActions}>
+                <PremiumButton label="Book Again" compact onPress={() => onNavigateTab?.('services')} />
               </View>
             </View>
           ) : (
             <View style={styles.emptyCard}>
               <IconCircle size={64} backgroundColor={colors.primarySoft}>
-                <Car size={28} color={colors.primaryBright} strokeWidth={iconStroke} />
+                <Car size={28} color={colors.primaryBright} strokeWidth={2} />
               </IconCircle>
               <Text style={styles.emptyTitle}>Add your first vehicle</Text>
-              <Text style={styles.emptyText}>Register a vehicle to get personalised service recommendations.</Text>
+              <Text style={styles.emptyText}>Register a vehicle to unlock personalised service recommendations.</Text>
             </View>
           )}
         </View>
 
-        {/* 7. Upcoming Service Reminder */}
         <View style={styles.section}>
-          <SectionHeader title="Upcoming Service Reminder" />
-          <View style={styles.reminderCard}>
-            <View style={styles.reminderTop}>
-              <View>
-                <Text style={styles.reminderCountdown}>
-                  {daysUntilReminder !== null ? `${daysUntilReminder} days` : '--'}
-                </Text>
-                <Text style={styles.reminderCaption}>until recommended service</Text>
-              </View>
-              <IconCircle size={52} backgroundColor={colors.accent}>
-                <Clock3 size={22} color={colors.primaryBright} strokeWidth={iconStroke} />
-              </IconCircle>
-            </View>
-            <Text style={styles.reminderText}>
-              {currentBooking
-                ? `Active order ${currentBooking.orderId} is in progress.`
-                : nextServiceDate
-                  ? `Recommended service by ${nextServiceDate.toLocaleDateString()}`
-                  : 'Schedule your next service to keep your vehicle in top condition.'}
-            </Text>
-            <PremiumButton
-              label="Schedule Service"
-              variant="secondary"
-              compact
-              onPress={() => onNavigateTab?.('services')}
-            />
-          </View>
-        </View>
-
-        {/* 8. Popular Services */}
-        <View style={styles.section}>
-          <SectionHeader title="Popular Services" actionLabel="See all" onActionPress={() => onNavigateTab?.('services')} />
+          <SectionHeader title="Popular Services" actionLabel="View all" onActionPress={() => onNavigateTab?.('services')} />
           {loading ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalRail}>
               {Array.from({ length: 3 }).map((_, index) => (
-                <View key={index} style={styles.skeletonServiceCard} />
+                <View key={`service-skeleton-${index}`} style={styles.serviceSkeletonCard} />
               ))}
             </ScrollView>
-          ) : popularServices.length > 0 ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
-              {popularServices.map((service) => (
+          ) : visibleServices.length > 0 ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalRail}>
+              {visibleServices.map((service) => (
                 <Pressable
                   key={service._id}
-                  style={({ pressed }) => [styles.serviceCard, pressed && styles.pressed]}
-                  onPress={() => onOpenServiceDetail?.(service._id) ?? onNavigateTab?.('services')}
+                  style={({ pressed }) => [styles.serviceCard, { width: isWide ? 260 : 230 }, pressed && styles.pressed]}
+                  onPress={() => {
+                    if (onOpenServiceDetail) {
+                      onOpenServiceDetail(service._id);
+                      return;
+                    }
+                    onNavigateTab?.('services');
+                  }}
                 >
-                  <View style={styles.serviceImageWrap}>
+                  <View style={styles.cardImageWrap}>
                     {service.thumbnailImage ? (
-                      <Image source={{ uri: service.thumbnailImage }} style={styles.serviceImage} />
+                      <Image source={{ uri: service.thumbnailImage }} style={styles.cardImage} />
                     ) : (
-                      <View style={styles.serviceImagePlaceholder}>
-                        <Wrench size={32} color={colors.primaryBright} strokeWidth={iconStroke} />
+                      <View style={styles.cardImagePlaceholder}>
+                        <Wrench size={32} color={colors.primaryBright} strokeWidth={2} />
                       </View>
                     )}
+                    <View style={styles.wishlistButton}>
+                      <Heart size={14} color="#FFFFFF" fill="transparent" strokeWidth={2} />
+                    </View>
                     {service.rating ? (
-                      <View style={styles.serviceRatingBadge}>
-                        <Star size={11} color={colors.warning} fill={colors.warning} strokeWidth={0} />
-                        <Text style={styles.serviceRatingText}>{service.rating.toFixed(1)}</Text>
+                      <View style={styles.ratingBadge}>
+                        <Star size={10} color={colors.warning} fill={colors.warning} strokeWidth={0} />
+                        <Text style={styles.ratingText}>{service.rating.toFixed(1)}</Text>
                       </View>
                     ) : null}
                   </View>
-                  <View style={styles.serviceBody}>
-                    <View style={styles.serviceTitleRow}>
-                      <Text style={styles.serviceName} numberOfLines={2}>{service.name}</Text>
+
+                  <View style={styles.cardBody}>
+                    <Text style={styles.cardTitle} numberOfLines={2}>
+                      {service.name}
+                    </Text>
+                    <Text style={styles.cardLabel}>Starting at</Text>
+                    <Text style={styles.cardPrice}>{formatCurrency(service.price)}</Text>
+                    <View style={styles.cardMetaRow}>
+                      <Clock3 size={13} color={colors.textMuted} strokeWidth={2} />
+                      <Text style={styles.cardMeta}>{formatServiceDuration(service)}</Text>
+                      {service.bookings ? <Text style={styles.cardMeta}>• {service.bookings} bookings</Text> : null}
                     </View>
-                    <Text style={styles.servicePriceLabel}>Starting at</Text>
-                    <Text style={styles.servicePrice}>{formatCurrency(service.price)}</Text>
-                    <View style={styles.serviceMetaRow}>
-                      <Clock3 size={13} color={colors.textMuted} strokeWidth={iconStroke} />
-                      <Text style={styles.serviceMeta}>{formatServiceDuration(service)}</Text>
-                      {service.bookings ? (
-                        <Text style={styles.serviceMeta}>• {service.bookings} bookings</Text>
-                      ) : null}
-                    </View>
-                    <PremiumButton
-                      label="Book Now"
-                      compact
-                      onPress={() => onOpenServiceDetail?.(service._id) ?? onNavigateTab?.('services')}
-                      style={styles.serviceCta}
-                    />
                   </View>
                 </Pressable>
               ))}
@@ -517,76 +670,57 @@ const HomeDashboard = ({ onNavigateTab, onOpenMyBookings, onOpenServiceDetail }:
           ) : (
             <View style={styles.emptyCard}>
               <Text style={styles.emptyTitle}>No services available</Text>
-              <Text style={styles.emptyText}>Check back soon for new service offerings.</Text>
+              <Text style={styles.emptyText}>Try a different search or check back soon.</Text>
             </View>
           )}
         </View>
 
-        {/* 9. Offer Banner */}
-        <View
-          style={styles.section}
-          onLayout={(event) => {
-            offerSectionY.current = event.nativeEvent.layout.y;
-          }}
-        >
-          <SectionHeader title="Special Offers" />
-          <View style={styles.offerCard}>
-            <View style={styles.offerGlow} />
-            <View style={styles.offerBadge}>
-              <Gift size={14} color="#FFFFFF" strokeWidth={iconStroke} />
-              <Text style={styles.offerBadgeText}>Limited offer</Text>
-            </View>
-            <Text style={styles.offerTitle}>{offerBanner?.title ?? 'Premium care packages'}</Text>
-            <Text style={styles.offerSubtitle}>
-              {offerBanner?.subtitle ?? 'Exclusive deals on full service and doorstep pickup.'}
-            </Text>
-            <PremiumButton
-              label={offerBanner?.ctaText ?? 'Explore Offers'}
-              onPress={() => {
-                if (offerBanner?.ctaAction === 'external' && offerBanner.targetUrl) {
-                  void Linking.openURL(offerBanner.targetUrl);
-                } else {
-                  onNavigateTab?.('services');
-                }
-              }}
-              style={styles.offerCta}
-            />
-          </View>
-        </View>
-
-        {/* 10. Spare Parts */}
         <View style={styles.section}>
-          <SectionHeader title="Spare Parts" actionLabel="See all" onActionPress={() => onNavigateTab?.('parts')} />
+          <SectionHeader title="Spare Parts" actionLabel="View all" onActionPress={() => onNavigateTab?.('parts')} />
           {loading ? (
-            <ActivityIndicator color={colors.primaryBright} style={{ marginVertical: spacing.md }} />
-          ) : spareParts.length > 0 ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
-              {spareParts.map((part) => (
-                <View key={part._id} style={styles.partCard}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalRail}>
+              {Array.from({ length: 3 }).map((_, index) => (
+                <View key={`part-skeleton-${index}`} style={styles.partSkeletonCard} />
+              ))}
+            </ScrollView>
+          ) : visibleParts.length > 0 ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalRail}>
+              {visibleParts.map((part) => (
+                <View key={part._id} style={[styles.partCard, { width: isWide ? 220 : 200 }]}>
                   <View style={styles.partImageWrap}>
                     {part.image ? (
                       <Image source={{ uri: part.image }} style={styles.partImage} />
                     ) : (
-                      <Wrench size={28} color={colors.primaryBright} strokeWidth={iconStroke} />
+                      <View style={styles.partImagePlaceholder}>
+                        <Wrench size={28} color={colors.primaryBright} strokeWidth={2} />
+                      </View>
                     )}
+                    <View style={styles.wishlistButtonPart}>
+                      <Heart size={14} color={colors.textMuted} fill="transparent" strokeWidth={2} />
+                    </View>
                     {part.isFeatured ? (
-                      <View style={styles.partFeaturedBadge}>
-                        <Text style={styles.partFeaturedText}>Featured</Text>
+                      <View style={styles.featuredBadge}>
+                        <Text style={styles.featuredBadgeText}>Featured</Text>
                       </View>
                     ) : null}
                     {part.status === 'Low Stock' ? (
-                      <View style={styles.partLowStockBadge}>
-                        <Text style={styles.partLowStockText}>Low Stock</Text>
+                      <View style={styles.lowStockBadge}>
+                        <Text style={styles.lowStockBadgeText}>Low Stock</Text>
                       </View>
                     ) : null}
                   </View>
-                  <Text style={styles.partBrand}>{part.brand || part.category || 'Genuine part'}</Text>
-                  <Text style={styles.partName} numberOfLines={2}>{part.itemName}</Text>
-                  <Text style={styles.partPrice}>{formatCurrency(part.sellingPrice)}</Text>
-                  {part.originalPrice && part.originalPrice > part.sellingPrice ? (
-                    <Text style={styles.partOldPrice}>{formatCurrency(part.originalPrice)}</Text>
-                  ) : null}
-                  <View style={styles.partFooter}>
+
+                  <View style={styles.partBody}>
+                    <Text style={styles.partBrand} numberOfLines={1}>
+                      {part.brand}
+                    </Text>
+                    <Text style={styles.partTitle} numberOfLines={2}>
+                      {part.itemName}
+                    </Text>
+                    <Text style={styles.partPrice}>{formatCurrency(part.sellingPrice)}</Text>
+                    {part.originalPrice && part.originalPrice > part.sellingPrice ? (
+                      <Text style={styles.partOldPrice}>{formatCurrency(part.originalPrice)}</Text>
+                    ) : null}
                     <Text style={[styles.partStock, part.status === 'Low Stock' && styles.partStockLow]}>
                       {part.status === 'Low Stock' ? `Only ${part.quantity} left` : `${part.quantity} in stock`}
                     </Text>
@@ -602,168 +736,140 @@ const HomeDashboard = ({ onNavigateTab, onOpenMyBookings, onOpenServiceDetail }:
           )}
         </View>
 
-        {/* 11. Why Choose Us */}
-        <View style={styles.section}>
-          <SectionHeader title="Why Choose Us" />
-          <View style={styles.featureGrid}>
-            {whyChooseUs.map((feature) => {
-              const Icon = feature.icon;
-              return (
-                <View key={feature.title} style={styles.featureCard}>
-                  <IconCircle size={44} backgroundColor={colors.primarySoft}>
-                    <Icon size={20} color={colors.primaryBright} strokeWidth={iconStroke} />
-                  </IconCircle>
-                  <Text style={styles.featureTitle}>{feature.title}</Text>
-                  <Text style={styles.featureText}>{feature.description}</Text>
-                </View>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* 12. Customer Reviews */}
-        <View style={styles.section}>
-          <SectionHeader title="Customer Reviews" />
-          {reviewOrders.length > 0 ? (
-            reviewOrders.map((order) => (
-              <View key={order._id} style={styles.reviewCard}>
-                <View style={styles.reviewHeader}>
-                  <View style={styles.reviewAuthorRow}>
-                    <View style={styles.reviewAvatar}>
-                      <Text style={styles.reviewAvatarText}>
-                        {(order.customer?.fullName ?? profile?.fullName ?? 'C')[0]?.toUpperCase()}
-                      </Text>
-                    </View>
-                    <View>
-                      <View style={styles.verifiedRow}>
-                        <Text style={styles.reviewAuthor}>{order.customer?.fullName ?? profile?.fullName ?? 'Customer'}</Text>
-                        <BadgeCheck size={14} color={colors.primaryBright} strokeWidth={iconStroke} />
-                      </View>
-                      <Text style={styles.reviewDate}>
-                        {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'Recent'}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-                <Text style={styles.reviewService}>
-                  {order.services?.map((item) => item.name).filter(Boolean).join(', ') || 'Garage service'}
-                </Text>
-                <Text style={styles.reviewText}>
-                  Completed service order {order.orderId} with transparent pricing and professional care.
-                </Text>
-              </View>
-            ))
-          ) : (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>No reviews yet</Text>
-              <Text style={styles.emptyText}>Verified customer reviews will appear after completed services.</Text>
-            </View>
-          )}
-        </View>
-
-        {/* 13. Emergency Assistance */}
         <View style={styles.section}>
           <View style={styles.emergencyCard}>
-            <View style={styles.emergencyGradientTop} />
-            <View style={styles.emergencyGradientBottom} />
-            <View style={styles.emergencyTop}>
+            <View style={styles.emergencyGlowTop} />
+            <View style={styles.emergencyGlowBottom} />
+            <View style={styles.emergencyTopRow}>
               <View style={styles.emergencyCopy}>
+                <View style={styles.emergencyBadge}>
+                  <Text style={styles.emergencyBadgeText}>24x7 Available</Text>
+                </View>
                 <Text style={styles.emergencyTitle}>Emergency Assistance</Text>
                 <Text style={styles.emergencySubtitle}>Roadside help whenever you need it.</Text>
               </View>
-              <View style={styles.emergencyBadge}>
-                <Text style={styles.emergencyBadgeText}>24×7</Text>
+              <View style={styles.emergencyIconWrap}>
+                <PhoneCall size={28} color="#FFFFFF" strokeWidth={2.2} />
               </View>
             </View>
-            <View style={styles.emergencyIllustration}>
-              <View style={styles.emergencyTruckCircle}>
-                <Truck size={40} color="#FFFFFF" strokeWidth={iconStroke} />
-              </View>
-            </View>
+
             <View style={styles.emergencyActions}>
-              <PremiumButton
-                label="Call Now"
-                compact
-                onPress={() => void Linking.openURL('tel:+911800000000')}
-                style={styles.emergencyBtn}
-              />
-              <PremiumButton
-                label="WhatsApp"
-                compact
-                variant="outline"
-                onPress={() => void Linking.openURL('https://wa.me/911800000000')}
-                style={styles.emergencyBtn}
-              />
+              <PremiumButton label="Call" compact onPress={openEmergency} style={styles.emergencyPrimaryButton} />
+              <PremiumButton label="WhatsApp" compact variant="secondary" onPress={openWhatsApp} style={styles.emergencySecondaryButton} />
             </View>
           </View>
         </View>
+      </ScrollView>
 
-        {/* 14. Recent Orders */}
-        <View style={styles.section}>
-          <SectionHeader title="Recent Orders" actionLabel="View all" onActionPress={() => onOpenMyBookings?.()} />
-          {loading ? (
-            Array.from({ length: 2 }).map((_, index) => (
-              <View key={index} style={styles.skeletonOrderCard} />
-            ))
-          ) : recentOrders.length > 0 ? (
-            recentOrders.slice(0, 4).map((order, index) => (
-              <View key={order._id} style={styles.orderCard}>
-                <View style={styles.orderTimeline}>
-                  <View style={[styles.timelineDot, index === 0 ? styles.timelineDotActive : null]} />
-                  {index < Math.min(recentOrders.length, 4) - 1 ? <View style={styles.timelineLine} /> : null}
-                </View>
-                <View style={styles.orderBody}>
-                  <View style={styles.orderHeader}>
-                    <View style={styles.statusBadge}>
-                      <Text style={styles.statusBadgeText}>{order.orderStatus.replace(/_/g, ' ')}</Text>
-                    </View>
-                    <Text style={styles.orderAmount}>{formatCurrency(order.totalAmount ?? 0)}</Text>
-                  </View>
-                  <Text style={styles.orderId}>{order.orderId}</Text>
-                  <Text style={styles.orderMeta}>
-                    {order.booking?.bookingDate
-                      ? new Date(order.booking.bookingDate).toLocaleDateString()
-                      : 'No schedule'}{' '}
-                    • {order.booking?.preferredTime ?? 'N/A'}
-                  </Text>
-                  <Text style={styles.orderMeta} numberOfLines={1}>
-                    {order.services?.map((item) => item.name).filter(Boolean).join(', ')
-                      || order.booking?.address
-                      || order.vehicle?.plateNumber
-                      || 'Service details'}
-                  </Text>
-                  <PremiumButton
-                    label="Track"
-                    compact
-                    variant="secondary"
-                    onPress={() => onOpenMyBookings?.()}
-                    style={styles.trackBtn}
-                  />
+      <Modal visible={isFilterSheetVisible} transparent animationType="fade" onRequestClose={() => setIsFilterSheetVisible(false)}>
+        <Pressable style={styles.sheetBackdrop} onPress={() => setIsFilterSheetVisible(false)}>
+          <View style={styles.sheetCard}>
+            <View style={styles.sheetHandle} />
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>Filters</Text>
+              <Pressable onPress={() => setIsFilterSheetVisible(false)} style={styles.sheetCloseButton}>
+                <X size={18} color={colors.text} strokeWidth={2.2} />
+              </Pressable>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.sheetContent}>
+              <View style={styles.sheetSection}>
+                <Text style={styles.sheetSectionTitle}>Category</Text>
+                <View style={styles.sheetChipGrid}>
+                  {filterCategories.map((value) => (
+                    <Pressable
+                      key={value}
+                      style={[styles.sheetChip, activeCategory === value && styles.sheetChipActive]}
+                      onPress={() => handleFilterSelect('category', value)}
+                    >
+                      <Text style={[styles.sheetChipText, activeCategory === value && styles.sheetChipTextActive]}>{value}</Text>
+                    </Pressable>
+                  ))}
                 </View>
               </View>
-            ))
-          ) : (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>No recent orders</Text>
-              <Text style={styles.emptyText}>Your completed service orders will appear here.</Text>
-            </View>
-          )}
-        </View>
 
-        {stats ? (
-          <Text style={styles.statsCaption}>
-            {stats.services} services • {stats.orders} orders served
-          </Text>
-        ) : null}
-      </ScrollView>
+              <View style={styles.sheetSection}>
+                <Text style={styles.sheetSectionTitle}>Brand</Text>
+                <View style={styles.sheetChipGrid}>
+                  {filterBrands.map((value) => (
+                    <Pressable
+                      key={value}
+                      style={[styles.sheetChip, activeBrand === value && styles.sheetChipActive]}
+                      onPress={() => handleFilterSelect('brand', value)}
+                    >
+                      <Text style={[styles.sheetChipText, activeBrand === value && styles.sheetChipTextActive]}>{value}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.sheetSection}>
+                <Text style={styles.sheetSectionTitle}>Vehicle</Text>
+                <View style={styles.sheetChipGrid}>
+                  {filterVehicles.map((value) => (
+                    <Pressable
+                      key={value}
+                      style={[styles.sheetChip, activeVehicleFilter === value && styles.sheetChipActive]}
+                      onPress={() => handleFilterSelect('vehicle', value)}
+                    >
+                      <Text style={[styles.sheetChipText, activeVehicleFilter === value && styles.sheetChipTextActive]}>{value}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.sheetSection}>
+                <Text style={styles.sheetSectionTitle}>Price</Text>
+                <View style={styles.sheetChipGrid}>
+                  {filterPriceOptions.map((value) => (
+                    <Pressable
+                      key={value}
+                      style={[styles.sheetChip, activePriceFilter === value && styles.sheetChipActive]}
+                      onPress={() => handleFilterSelect('price', value)}
+                    >
+                      <Text style={[styles.sheetChipText, activePriceFilter === value && styles.sheetChipTextActive]}>{value}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.sheetSection}>
+                <Text style={styles.sheetSectionTitle}>Availability</Text>
+                <View style={styles.sheetChipGrid}>
+                  {filterAvailabilityOptions.map((value) => (
+                    <Pressable
+                      key={value}
+                      style={[styles.sheetChip, activeAvailabilityFilter === value && styles.sheetChipActive]}
+                      onPress={() => handleFilterSelect('availability', value)}
+                    >
+                      <Text style={[styles.sheetChipText, activeAvailabilityFilter === value && styles.sheetChipTextActive]}>{value}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            </ScrollView>
+
+            <View style={styles.sheetFooter}>
+              <PremiumButton label="Clear" variant="secondary" compact onPress={resetSearchAndFilters} style={styles.sheetFooterButton} />
+              <PremiumButton label="Apply" compact onPress={() => setIsFilterSheetVisible(false)} style={styles.sheetFooterButton} />
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 };
 
-const baseStyles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  content: { paddingTop: spacing.lg, paddingHorizontal: spacing.md, paddingBottom: 184 },
-  contentWide: { paddingHorizontal: spacing.lg },
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  content: {
+    paddingTop: 20,
+    paddingHorizontal: 24,
+    paddingBottom: 140,
+  },
   errorBanner: {
     backgroundColor: colors.dangerSoft,
     borderRadius: radius.lg,
@@ -772,195 +878,292 @@ const baseStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#FECACA',
   },
-  errorText: { color: colors.danger, fontWeight: '700', fontSize: 14 },
-  heroCluster: { gap: spacing.md, marginBottom: spacing.lg },
-  headerCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 28,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    paddingHorizontal: 24,
-    paddingVertical: 22,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 20,
-    ...shadow.float,
+  errorText: {
+    color: colors.danger,
+    fontWeight: '700',
+    fontSize: 14,
   },
-  headerLeft: { flex: 1, paddingRight: spacing.xs },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+  },
+  headerIconButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerCopy: {
+    flex: 1,
+    minHeight: 44,
+    justifyContent: 'center',
+  },
   greeting: {
     color: colors.textMuted,
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 14,
+    lineHeight: 18,
     fontWeight: '700',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
+    letterSpacing: 0.2,
   },
-  userName: {
+  brandName: {
     color: colors.text,
-    fontSize: 28,
-    lineHeight: 32,
+    fontSize: 22,
+    lineHeight: 26,
     fontWeight: '800',
-    marginTop: 6,
-    marginBottom: 8,
     letterSpacing: -0.4,
+    marginTop: 2,
   },
-  heroSubtitle: { ...typography.subtitle, marginBottom: spacing.md },
-  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 2 },
-  locationIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  locationTextWrap: { flex: 1 },
-  locationLabel: {
-    color: colors.textLight,
-    fontSize: 11,
-    lineHeight: 14,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  locationValue: { color: colors.textMuted, fontWeight: '600', fontSize: 13, lineHeight: 18, marginTop: 3 },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12, alignSelf: 'flex-start' },
-  iconButton: {
-    width: 52,
-    height: 52,
-    borderRadius: 18,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadow.card,
-  },
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 18,
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1,
-    borderColor: '#DCE7FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadow.card,
-  },
-  avatarText: { color: colors.primaryBright, fontSize: 18, fontWeight: '800', letterSpacing: 0.2 },
   badge: {
     position: 'absolute',
-    top: -5,
-    right: -5,
-    minWidth: 20,
-    height: 20,
-    borderRadius: 10,
+    top: 3,
+    right: 3,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: colors.danger,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 4,
   },
-  badgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '800' },
-  searchCard: { gap: spacing.sm },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  searchSection: {
+    gap: 12,
+    marginBottom: 16,
+  },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
+    minHeight: 56,
     backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    ...shadow.card,
-  },
-  searchInput: { flex: 1, marginLeft: spacing.sm, color: colors.text, fontSize: 15, fontWeight: '500', paddingVertical: spacing.sm },
-  filterButton: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.md,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  locationChip: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.surfaceRaised,
     borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 10,
     borderWidth: 1,
     borderColor: colors.borderSoft,
-  },
-  locationChipText: { color: colors.text, fontWeight: '700', fontSize: 13 },
-  bannerFrame: { borderRadius: radius.xl, overflow: 'hidden', ...shadow.float },
-  summaryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  summaryCard: {
-    flexGrow: 1,
-    flexBasis: '48%',
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    padding: spacing.md,
+    paddingLeft: 16,
+    paddingRight: 10,
     ...shadow.card,
   },
-  summaryLabel: { ...typography.caption, textTransform: 'uppercase', letterSpacing: 0.8 },
-  summaryValue: { color: colors.text, fontSize: 20, fontWeight: '800', marginTop: 6 },
-  summaryMeta: { color: colors.textMuted, fontSize: 12, marginTop: 4 },
-  quickRail: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg },
-  quickActionCard: {
-    flexGrow: 1,
-    flexBasis: '47%',
+  searchInput: {
+    flex: 1,
+    marginLeft: 10,
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '600',
+    paddingVertical: 0,
+  },
+  searchLoading: {
+    marginRight: 8,
+  },
+  clearButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+    backgroundColor: colors.surfaceSoft,
+  },
+  filterButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primarySoft,
+  },
+  searchSurface: {
     backgroundColor: colors.surface,
     borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.borderSoft,
     padding: spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
     gap: spacing.sm,
     ...shadow.card,
   },
-  quickActionLabel: { ...typography.cardTitle, fontSize: 14, textAlign: 'center' },
-  sectionCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
+  searchSurfaceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  searchSurfaceTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  clearFiltersButton: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primarySoft,
+  },
+  clearFiltersButtonText: {
+    color: colors.primaryBright,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  searchLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 4,
+  },
+  searchLoadingText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  suggestionRail: {
+    gap: 10,
+    paddingRight: 4,
+  },
+  suggestionChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceSoft,
     borderWidth: 1,
     borderColor: colors.borderSoft,
-    padding: spacing.md,
-    marginBottom: spacing.lg,
-    ...shadow.card,
   },
-  horizontalScroll: { paddingVertical: spacing.xs, gap: spacing.md },
-  categoryCard: {
-    width: 108,
-    backgroundColor: colors.surfaceRaised,
+  suggestionChipText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  searchEmptyState: {
+    paddingVertical: 4,
+    gap: 8,
+  },
+  searchEmptyTitle: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  searchEmptyText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: '500',
+    lineHeight: 19,
+  },
+  section: {
+    marginBottom: 20,
+  },
+  horizontalRail: {
+    gap: 12,
+    paddingVertical: 4,
+  },
+  quickActionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  quickActionCard: {
+    flexGrow: 1,
+    flexBasis: '48%',
+    minHeight: 132,
+    backgroundColor: colors.surface,
     borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.borderSoft,
     paddingVertical: spacing.md,
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: 12,
     alignItems: 'center',
-    gap: spacing.sm,
-    marginRight: spacing.sm,
+    justifyContent: 'center',
+    gap: 8,
+    ...shadow.card,
   },
-  categoryIconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 20,
-    backgroundColor: colors.primarySoft,
+  quickActionTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  quickActionSubtitle: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  categoryCard: {
+    width: 108,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    gap: 8,
+    ...shadow.card,
+  },
+  categoryLabel: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
+    lineHeight: 16,
+  },
+  vehicleSkeleton: {
+    flexDirection: 'row',
+    gap: 12,
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    ...shadow.card,
+  },
+  skeletonVehicleGraphic: {
+    width: 112,
+    height: 112,
+    borderRadius: radius.xl,
+    backgroundColor: colors.surfaceSoft,
+  },
+  skeletonVehicleLines: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: 10,
+  },
+  skeletonLineLong: {
+    height: 18,
+    width: '72%',
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: radius.sm,
+  },
+  skeletonLineMedium: {
+    height: 14,
+    width: '56%',
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: radius.sm,
+  },
+  skeletonLineShort: {
+    height: 14,
+    width: '44%',
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: radius.sm,
+  },
+  vehicleCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    padding: spacing.md,
+    ...shadow.card,
+  },
+  vehicleGraphic: {
+    width: 112,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  categoryLabel: { color: colors.text, fontWeight: '700', fontSize: 12, textAlign: 'center' },
-  dualGrid: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg, flexWrap: 'wrap' },
-  vehicleCard: { flexDirection: 'row', gap: spacing.md, alignItems: 'flex-start' },
-  vehicleImageSection: { width: 112, alignItems: 'center', justifyContent: 'center' },
-  vehicleImageBg: {
+  vehicleGraphicCircle: {
     width: 112,
     height: 112,
     borderRadius: radius.xl,
@@ -968,336 +1171,479 @@ const baseStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  vehicleStatusBadge: {
+  primaryBadge: {
     position: 'absolute',
     top: -4,
+    left: 10,
     backgroundColor: colors.primaryBright,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: 8,
     paddingVertical: 4,
+    borderRadius: radius.pill,
   },
-  vehicleStatusText: { color: '#FFFFFF', fontSize: 10, fontWeight: '800' },
-  vehicleBody: { flex: 1 },
-  vehicleName: { fontSize: 18, fontWeight: '800', color: colors.text, marginBottom: spacing.sm },
-  badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.sm },
-  infoBadge: {
+  primaryBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  vehicleBody: {
+    flex: 1,
+    minWidth: 0,
+  },
+  vehicleTitleRow: {
+    marginBottom: 8,
+  },
+  vehicleTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '800',
+    lineHeight: 22,
+  },
+  vehicleMetaPills: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
+  },
+  vehicleMetaPill: {
     backgroundColor: colors.primarySoft,
     borderRadius: radius.pill,
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: 10,
     paddingVertical: 6,
   },
-  infoBadgeMuted: { backgroundColor: colors.secondary },
-  infoBadgeText: { color: colors.primaryBright, fontWeight: '800', fontSize: 12 },
-  infoBadgeTextMuted: { color: colors.textMuted, fontWeight: '700', fontSize: 12 },
-  vehicleMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
-  vehicleMeta: { color: colors.textMuted, fontSize: 13, fontWeight: '500', flex: 1 },
-  vehicleCta: { marginTop: spacing.sm, alignSelf: 'flex-start' },
-  reminderCard: {
-    backgroundColor: colors.surfaceRaised,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    padding: spacing.md,
+  vehicleMetaPillText: {
+    color: colors.primaryBright,
+    fontSize: 12,
+    fontWeight: '800',
   },
-  reminderTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
-  reminderCountdown: { fontSize: 30, fontWeight: '800', color: colors.primaryBright, letterSpacing: -0.5 },
-  reminderCaption: { color: colors.textMuted, fontWeight: '600', fontSize: 13, marginTop: 4 },
-  reminderText: { ...typography.subtitle, marginBottom: spacing.md },
-  serviceCard: {
-    width: 300,
-    backgroundColor: colors.surfaceRaised,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    overflow: 'hidden',
-    marginRight: spacing.md,
-  },
-  serviceImageWrap: { position: 'relative', width: '100%', height: 180 },
-  serviceImage: { width: '100%', height: 180, backgroundColor: colors.secondary },
-  serviceImagePlaceholder: {
-    width: '100%',
-    height: 180,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  serviceRatingBadge: {
-    position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.95)',
+  vehicleMetaPillMuted: {
+    backgroundColor: colors.surfaceSoft,
     borderRadius: radius.pill,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
-  serviceRatingText: { color: colors.text, fontWeight: '800', fontSize: 12 },
-  serviceBody: { padding: spacing.md },
-  serviceName: { fontSize: 16, fontWeight: '800', color: colors.text, marginBottom: spacing.xs },
-  servicePriceLabel: { ...typography.caption, color: colors.textLight },
-  servicePrice: { color: colors.primaryBright, fontSize: 20, fontWeight: '800', marginBottom: spacing.sm },
-  serviceMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: spacing.md, flexWrap: 'wrap' },
-  serviceMeta: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
-  serviceCta: { alignSelf: 'stretch' },
-  partCard: {
-    width: 220,
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    overflow: 'hidden',
-    marginRight: spacing.md,
-    ...shadow.card,
-  },
-  partImageWrap: {
-    height: 120,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.sm,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  partImage: { width: '100%', height: '100%', resizeMode: 'cover' },
-  partFeaturedBadge: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: colors.primaryBright,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-  },
-  partFeaturedText: { color: '#FFFFFF', fontSize: 10, fontWeight: '800' },
-  partLowStockBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: colors.warningSoft,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-  },
-  partLowStockText: { color: '#92400e', fontSize: 10, fontWeight: '800' },
-  partBrand: {
+  vehicleMetaPillMutedText: {
     color: colors.textMuted,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
-    paddingHorizontal: spacing.md,
-    marginBottom: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
   },
-  partName: { fontSize: 15, fontWeight: '800', color: colors.text, marginBottom: 4, paddingHorizontal: spacing.md },
-  partPrice: { color: colors.primaryBright, fontSize: 18, fontWeight: '800', marginBottom: 2, paddingHorizontal: spacing.md },
-  partOldPrice: {
-    color: colors.textLight,
-    fontSize: 13,
-    textDecorationLine: 'line-through',
-    marginBottom: spacing.sm,
-    paddingHorizontal: spacing.md,
-  },
-  partFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
-  },
-  partStock: { color: colors.success, fontSize: 11, fontWeight: '700', flex: 1 },
-  partStockLow: { color: '#d97706' },
-  promoCard: { backgroundColor: '#0F172A', borderRadius: radius.xl, padding: spacing.lg, overflow: 'hidden', minHeight: 220 },
-  promoGlow: {
-    position: 'absolute',
-    top: -30,
-    right: -30,
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: 'rgba(37,99,235,0.35)',
-  },
-  promoBadge: {
+  vehicleInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    alignSelf: 'flex-start',
-    marginBottom: spacing.sm,
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
+    marginBottom: 6,
   },
-  promoBadgeText: { color: '#FFFFFF', fontWeight: '700', fontSize: 12 },
-  promoTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '800', lineHeight: 26, marginBottom: spacing.sm },
-  promoSubtitle: { ...typography.subtitle, color: 'rgba(255,255,255,0.88)', marginBottom: spacing.md },
-  promoCta: { alignSelf: 'flex-start', backgroundColor: '#FFFFFF', minWidth: 140 },
-  emergencyCard: { backgroundColor: '#1E3A8A', borderRadius: radius.xl, padding: spacing.lg, overflow: 'hidden', minHeight: 220 },
-  emergencyTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.md },
-  emergencyCopy: { flex: 1, paddingRight: spacing.md },
-  emergencyTitle: { fontSize: 20, fontWeight: '800', color: '#FFFFFF' },
-  emergencySubtitle: { ...typography.subtitle, marginTop: spacing.xs, color: 'rgba(255,255,255,0.82)' },
-  emergencyBadge: {
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
-  },
-  emergencyBadgeText: { color: '#FFFFFF', fontWeight: '800', fontSize: 12 },
-  emergencyIllustration: { alignItems: 'center', marginBottom: spacing.md },
-  emergencyTruckCircle: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: 'rgba(255,255,255,0.14)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emergencyActions: { flexDirection: 'row', gap: spacing.sm },
-  emergencyBtn: { flex: 1 },
-  featureGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  featureCard: {
-    width: '48%',
-    backgroundColor: colors.surfaceRaised,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  featureTitle: { ...typography.cardTitle },
-  featureText: { ...typography.subtitle, fontSize: 13 },
-  reviewCard: {
-    backgroundColor: colors.surfaceRaised,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  reviewHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.xs },
-  reviewAuthorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1 },
-  reviewAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  reviewAvatarText: { color: colors.primaryBright, fontWeight: '800', fontSize: 16 },
-  verifiedRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  reviewAuthor: { color: colors.text, fontWeight: '800', fontSize: 14 },
-  reviewDate: { color: colors.textLight, fontSize: 12, fontWeight: '600', marginTop: 2 },
-  reviewService: { color: colors.primaryBright, fontWeight: '700', fontSize: 13, marginBottom: spacing.sm },
-  reviewText: { ...typography.subtitle },
-  orderCard: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md },
-  orderTimeline: { alignItems: 'center', width: 20, paddingTop: 6 },
-  timelineDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: colors.border,
-    borderWidth: 2,
-    borderColor: colors.surface,
-  },
-  timelineDotActive: { backgroundColor: colors.primaryBright },
-  timelineLine: {
+  vehicleInfoText: {
     flex: 1,
-    width: 2,
-    backgroundColor: colors.border,
-    marginTop: 4,
-    minHeight: 80,
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: '600',
   },
-  orderBody: {
-    flex: 1,
-    backgroundColor: colors.surfaceRaised,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    padding: spacing.md,
+  vehicleActions: {
+    alignSelf: 'center',
   },
-  orderHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
-  statusBadge: { backgroundColor: colors.primarySoft, borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 4 },
-  statusBadgeText: { color: colors.primaryBright, fontWeight: '800', fontSize: 11, textTransform: 'capitalize' },
-  orderAmount: { color: colors.text, fontWeight: '800', fontSize: 15 },
-  orderId: { color: colors.text, fontWeight: '800', fontSize: 15, marginBottom: 4 },
-  orderMeta: { color: colors.textMuted, fontSize: 13, lineHeight: 18, marginBottom: 4 },
-  trackBtn: { alignSelf: 'flex-start', marginTop: spacing.sm },
   emptyCard: {
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: colors.surface,
     borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.borderSoft,
     padding: spacing.lg,
     alignItems: 'center',
-    gap: spacing.sm,
+    justifyContent: 'center',
+    gap: 8,
     ...shadow.card,
   },
-  emptyTitle: { fontSize: 16, fontWeight: '800', color: colors.text, textAlign: 'center' },
-  emptyText: { ...typography.subtitle, textAlign: 'center' },
-  skeletonCard: { backgroundColor: colors.secondary, borderRadius: radius.xl, padding: spacing.lg, gap: spacing.sm },
-  skeletonLineLarge: { height: 20, width: '70%', backgroundColor: colors.border, borderRadius: radius.sm },
-  skeletonLineMedium: { height: 14, width: '50%', backgroundColor: colors.border, borderRadius: radius.sm },
-  skeletonLineSmall: { height: 14, width: '40%', backgroundColor: colors.border, borderRadius: radius.sm },
-  skeletonServiceCard: { width: 280, height: 280, backgroundColor: colors.secondary, borderRadius: radius.xl, marginRight: spacing.md },
-  skeletonOrderCard: { height: 110, backgroundColor: colors.secondary, borderRadius: radius.lg, marginBottom: spacing.md },
-  pressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
-});
-
-const styles = {
-  ...baseStyles,
-  container: baseStyles.screen,
-  header: baseStyles.headerCard,
-  headerIconBtn: baseStyles.iconButton,
-  searchSection: baseStyles.searchCard,
-  filterBtn: baseStyles.filterButton,
-  section: baseStyles.sectionCard,
-  quickActionsGrid: baseStyles.quickRail,
-  serviceTitleRow: { marginBottom: spacing.xs },
-  offerCard: baseStyles.promoCard,
-  offerGlow: baseStyles.promoGlow,
-  offerBadge: baseStyles.promoBadge,
-  offerBadgeText: baseStyles.promoBadgeText,
-  offerTitle: baseStyles.promoTitle,
-  offerSubtitle: baseStyles.promoSubtitle,
-  offerCta: baseStyles.promoCta,
-  emergencyGradientTop: {
-    position: 'absolute',
-    top: -28,
-    left: -20,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+  emptyTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '800',
+    textAlign: 'center',
   },
-  emergencyGradientBottom: {
-    position: 'absolute',
-    bottom: -36,
-    right: -20,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+  emptyText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: '500',
+    textAlign: 'center',
+    lineHeight: 19,
   },
-  statsCaption: {
+  serviceSkeletonCard: {
+    width: 230,
+    height: 286,
+    borderRadius: radius.xl,
+    backgroundColor: colors.surfaceSoft,
+  },
+  serviceCard: {
+    width: 230,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    overflow: 'hidden',
+    ...shadow.card,
+  },
+  cardImageWrap: {
+    width: '100%',
+    height: 150,
+    position: 'relative',
+    backgroundColor: colors.surfaceSoft,
+  },
+  cardImage: {
+    width: '100%',
+    height: '100%',
+  },
+  cardImagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primarySoft,
+  },
+  wishlistButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(15, 23, 42, 0.42)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ratingBadge: {
+    position: 'absolute',
+    right: 10,
+    bottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    borderRadius: radius.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  ratingText: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  cardBody: {
+    padding: spacing.md,
+  },
+  cardTitle: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '800',
+    lineHeight: 20,
+    marginBottom: 6,
+  },
+  cardLabel: {
+    color: colors.textLight,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  cardPrice: {
+    color: colors.primaryBright,
+    fontSize: 20,
+    lineHeight: 24,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  cardMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  cardMeta: {
     color: colors.textMuted,
     fontSize: 12,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginTop: spacing.xs,
+    fontWeight: '600',
   },
-} as const;
+  partSkeletonCard: {
+    width: 200,
+    height: 300,
+    borderRadius: radius.xl,
+    backgroundColor: colors.surfaceSoft,
+  },
+  partCard: {
+    width: 200,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    overflow: 'hidden',
+    ...shadow.card,
+  },
+  partImageWrap: {
+    width: '100%',
+    height: 132,
+    position: 'relative',
+    backgroundColor: colors.surfaceSoft,
+  },
+  partImage: {
+    width: '100%',
+    height: '100%',
+  },
+  partImagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primarySoft,
+  },
+  wishlistButtonPart: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255,255,255,0.94)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+  },
+  featuredBadge: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    backgroundColor: colors.primaryBright,
+    borderRadius: radius.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  featuredBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  lowStockBadge: {
+    position: 'absolute',
+    bottom: 10,
+    left: 10,
+    backgroundColor: colors.warningSoft,
+    borderRadius: radius.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  lowStockBadgeText: {
+    color: colors.warning,
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  partBody: {
+    padding: spacing.md,
+  },
+  partBrand: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: 4,
+  },
+  partTitle: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '800',
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  partPrice: {
+    color: colors.primaryBright,
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 2,
+  },
+  partOldPrice: {
+    color: colors.textLight,
+    fontSize: 13,
+    fontWeight: '600',
+    textDecorationLine: 'line-through',
+    marginBottom: 8,
+  },
+  partStock: {
+    color: colors.success,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  partStockLow: {
+    color: colors.warning,
+  },
+  emergencyCard: {
+    backgroundColor: '#0F3A91',
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    overflow: 'hidden',
+    position: 'relative',
+    ...shadow.float,
+  },
+  emergencyGlowTop: {
+    position: 'absolute',
+    top: -32,
+    right: -32,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(37,99,235,0.35)',
+  },
+  emergencyGlowBottom: {
+    position: 'absolute',
+    bottom: -32,
+    left: -40,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  emergencyTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: spacing.md,
+  },
+  emergencyCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 6,
+  },
+  emergencyBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  emergencyBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  emergencyTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: '800',
+  },
+  emergencySubtitle: {
+    color: 'rgba(255,255,255,0.82)',
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: '500',
+  },
+  emergencyIconWrap: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  emergencyActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  emergencyPrimaryButton: {
+    flex: 1,
+  },
+  emergencySecondaryButton: {
+    flex: 1,
+  },
+  sheetBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.42)',
+    justifyContent: 'flex-end',
+  },
+  sheetCard: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingTop: 10,
+    paddingHorizontal: 16,
+    paddingBottom: 18,
+    maxHeight: '82%',
+  },
+  sheetHandle: {
+    width: 46,
+    height: 5,
+    borderRadius: 999,
+    alignSelf: 'center',
+    backgroundColor: colors.borderStrong,
+    marginBottom: 14,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  sheetTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  sheetCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surfaceSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sheetContent: {
+    paddingBottom: 16,
+    gap: 16,
+  },
+  sheetSection: {
+    gap: 10,
+  },
+  sheetSectionTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  sheetChipGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  sheetChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceSoft,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+  },
+  sheetChipActive: {
+    backgroundColor: colors.primarySoft,
+    borderColor: '#BFDBFE',
+  },
+  sheetChipText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  sheetChipTextActive: {
+    color: colors.primaryBright,
+  },
+  sheetFooter: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 8,
+  },
+  sheetFooterButton: {
+    flex: 1,
+  },
+  pressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.98 }],
+  },
+});
 
 export default HomeDashboard;

@@ -15,10 +15,10 @@ import { MobileBanner } from '../../services/bannerService';
 const HERO_HEIGHT = 248;
 
 const fallbackCopy = {
-  badge: 'PREMIUM DOORSTEP SERVICE',
-  title: 'Premium Bike Service',
-  titleLine2: 'At Your Doorstep',
-  subtitle: 'Trusted technicians • Genuine parts • Transparent pricing',
+  badge: 'PREMIUM SERVICE',
+  title: 'Expert Care',
+  titleLine2: 'For Your Ride',
+  subtitle: 'Quality service, genuine parts and complete peace of mind.',
   cta: 'Book Service',
 };
 
