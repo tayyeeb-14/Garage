@@ -1,6 +1,6 @@
 import React from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, ViewStyle } from 'react-native';
-import { colors, radius, spacing } from '../../theme/tokens';
+import { colors, radius, shadow, spacing } from '../../theme/tokens';
 
 type PremiumButtonProps = {
   label: string;
@@ -61,7 +61,7 @@ const PremiumButton = ({
 const styles = StyleSheet.create({
   base: {
     minHeight: 52,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     paddingHorizontal: spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
@@ -72,6 +72,7 @@ const styles = StyleSheet.create({
   },
   primary: {
     backgroundColor: colors.primaryBright,
+    ...shadow.card,
   },
   secondary: {
     backgroundColor: colors.primarySoft,
@@ -82,7 +83,7 @@ const styles = StyleSheet.create({
   outline: {
     backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
   },
   disabled: {
     opacity: 0.5,
@@ -94,6 +95,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 15,
     fontWeight: '700',
+    letterSpacing: -0.2,
   },
   labelPrimary: {
     color: '#FFFFFF',

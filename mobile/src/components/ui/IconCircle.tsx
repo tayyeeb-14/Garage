@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, ViewStyle } from 'react-native';
-import { colors, radius } from '../../theme/tokens';
+import { colors, radius, shadow } from '../../theme/tokens';
 
 type IconCircleProps = {
   children: React.ReactNode;
@@ -21,7 +21,7 @@ const IconCircle = ({
       {
         width: size,
         height: size,
-        borderRadius: size * 0.38,
+        borderRadius: size * 0.34,
         backgroundColor,
       },
       style,
@@ -35,6 +35,7 @@ const styles = StyleSheet.create({
   circle: {
     alignItems: 'center',
     justifyContent: 'center',
+    ...shadow.card,
   },
 });
 

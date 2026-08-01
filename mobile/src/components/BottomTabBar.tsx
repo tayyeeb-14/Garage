@@ -56,12 +56,12 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
+    paddingBottom: spacing.lg,
     paddingTop: spacing.sm,
     backgroundColor: 'transparent',
   },
   navContainer: {
-    height: 80,
+    minHeight: 78,
     backgroundColor: colors.background,
     borderRadius: 28,
     borderWidth: 1,
@@ -70,6 +70,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xs,
     ...shadow.float,
   },
   tabButton: {
@@ -81,13 +82,13 @@ const styles = StyleSheet.create({
   tabPill: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 4,
-    borderRadius: radius.md,
-    minWidth: 52,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderRadius: 20,
+    minWidth: 56,
   },
   tabPillActive: {
-    backgroundColor: 'transparent',
+    backgroundColor: colors.primarySoft,
   },
   tabIconWrap: {
     width: 40,
@@ -101,9 +102,10 @@ const styles = StyleSheet.create({
     ...shadow.card,
   },
   tabLabel: {
-    marginTop: 4,
-    fontSize: 10,
+    marginTop: 5,
+    fontSize: 11,
     fontWeight: '700',
+    letterSpacing: -0.1,
   },
   tabLabelActive: {
     color: colors.primaryBright,
