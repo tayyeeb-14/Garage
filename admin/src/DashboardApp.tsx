@@ -33,8 +33,15 @@ import ConfirmDialog from './components/ConfirmDialog';
 import EmptyState from './components/EmptyState';
 import { formatCurrency } from './utils/currency';
 import { useAdminDashboard } from './hooks/useAdminDashboard';
+import BookingsPage from './pages/BookingsPage';
+import OrdersPage from './pages/OrdersPage';
+import PartsPage from './pages/PartsPage';
+import ServicesPage from './pages/ServicesPage';
+import BannerManagementPage from './pages/BannerManagementPage';
+import CustomersPage from './pages/CustomersPage';
+import CategoriesPage from './pages/CategoriesPage';
 
-type ViewId = 'dashboard' | 'bookings' | 'orders' | 'customers' | 'parts' | 'inventory' | 'services' | 'banners' | 'reports' | 'settings';
+type ViewId = 'dashboard' | 'bookings' | 'orders' | 'customers' | 'parts' | 'inventory' | 'services' | 'categories' | 'banners' | 'reports' | 'settings';
 
 interface NavigationItem {
   id: ViewId;
@@ -52,6 +59,7 @@ const NAVIGATION: NavigationItem[] = [
   { id: 'parts', label: 'Parts', icon: Package },
   { id: 'inventory', label: 'Inventory', icon: ClipboardList },
   { id: 'services', label: 'Services', icon: Wrench },
+  { id: 'categories', label: 'Categories', icon: Package },
   { id: 'banners', label: 'Banners', icon: Megaphone },
   { id: 'reports', label: 'Reports', icon: BarChart3 },
   { id: 'settings', label: 'Settings', icon: Settings2 },
@@ -118,12 +126,9 @@ const DashboardApp = () => {
   const {
     stats,
     bookingStats,
-    serviceStats,
     inventoryStats,
     recentBookings,
     orders,
-    services,
-    inventory,
     lowStock,
     topServices,
     banners,
@@ -180,6 +185,7 @@ const DashboardApp = () => {
     parts: stats ? String(stats.products) : undefined,
     inventory: inventoryStats ? `${inventoryStats.lowStockCount} low` : undefined,
     services: stats ? String(stats.services) : undefined,
+    categories: undefined,
     banners: banners.length ? String(banners.length) : undefined,
     reports: stats ? 'Live' : undefined,
     settings: undefined,
@@ -198,21 +204,6 @@ const DashboardApp = () => {
   const filteredCustomers = useMemo(
     () => customers.filter((customer) => matchesQuery(query, customer.name, customer.email, customer.phone, customer.source)),
     [customers, query],
-  );
-
-  const filteredInventory = useMemo(
-    () => inventory.filter((item) => matchesQuery(query, item.itemName, item.brand, item.category, item.sku, item.status)),
-    [inventory, query],
-  );
-
-  const filteredServices = useMemo(
-    () => services.filter((service) => matchesQuery(query, service.name, service.category, service.shortDescription, service.fullDescription)),
-    [query, services],
-  );
-
-  const filteredBanners = useMemo(
-    () => banners.filter((banner) => matchesQuery(query, banner.title, banner.subtitle, banner.ctaText, banner.ctaAction)),
-    [banners, query],
   );
 
   const handleViewChange = (view: ViewId) => {
@@ -490,186 +481,19 @@ const DashboardApp = () => {
     </>
   );
 
-  const renderBookings = () => (
-    <>
-      {renderSectionTitle('Bookings', 'Track appointments, status, and customer requests.', backToDashboardAction)}
-      <section className="metric-grid metric-grid--compact">
-        <SmallStat label="Pending" value={bookingStats?.pending ?? 0} tone="warning" />
-        <SmallStat label="Confirmed" value={bookingStats?.confirmed ?? 0} tone="info" />
-        <SmallStat label="In Progress" value={bookingStats?.inProgress ?? 0} tone="info" />
-        <SmallStat label="Completed" value={bookingStats?.completed ?? 0} tone="success" />
-        <SmallStat label="Cancelled" value={bookingStats?.cancelled ?? 0} tone="danger" />
-      </section>
-      <Panel title="Bookings Table" subtitle="Search-ready summary of recent bookings">
-        <DataTable
-          columns={['Booking', 'Customer', 'Vehicle', 'Service Date', 'Status']}
-          emptyLabel="No bookings match your search."
-          rows={filteredBookings.map((booking) => (
-            <tr key={booking._id}>
-              <Td title>{booking.bookingId}</Td>
-              <Td>{booking.customer?.fullName ?? 'Customer'}</Td>
-              <Td>{booking.vehicle?.plateNumber ?? 'Vehicle'}</Td>
-              <Td>{new Date(booking.bookingDate).toLocaleDateString()}</Td>
-              <Td><span className={statusLabelClass(toneForBooking(booking.status))}>{booking.status.replace(/_/g, ' ')}</span></Td>
-            </tr>
-          ))}
-        />
-      </Panel>
-    </>
-  );
+  const renderBookings = () => <BookingsPage />;
 
-  const renderOrders = () => (
-    <>
-      {renderSectionTitle('Orders', 'Track fulfilment, payments, and customer communication.', backToDashboardAction)}
-      <section className="metric-grid metric-grid--compact">
-        <SmallStat label="Total Orders" value={stats?.orders ?? 0} tone="info" />
-        <SmallStat label="Revenue" value={formatCurrency(stats?.revenue ?? 0)} tone="success" />
-        <SmallStat label="Pending Jobs" value={bookingStats?.pending ?? 0} tone="warning" />
-        <SmallStat label="Completed Jobs" value={bookingStats?.completed ?? 0} tone="success" />
-      </section>
-      <Panel title="Orders Table" subtitle="Search-ready summary of recent orders">
-        <DataTable
-          columns={['Order', 'Customer', 'Vehicle', 'Total', 'Status']}
-          emptyLabel="No orders match your search."
-          rows={filteredOrders.map((order) => (
-            <tr key={order._id}>
-              <Td title>{order.orderId}</Td>
-              <Td>{order.customer?.fullName ?? 'Customer'}</Td>
-              <Td>{order.vehicle?.plateNumber ?? 'Vehicle'}</Td>
-              <Td>{formatCurrency(order.totalAmount ?? 0)}</Td>
-              <Td><span className={statusLabelClass(toneForOrder(order.orderStatus))}>{order.orderStatus.replace(/_/g, ' ')}</span></Td>
-            </tr>
-          ))}
-        />
-      </Panel>
-    </>
-  );
+  const renderOrders = () => <OrdersPage />;
 
-  const renderCustomers = () => (
-    <>
-      {renderSectionTitle('Customers', 'Premium customer directory with engagement insights.', backToDashboardAction)}
-      <Panel title="Latest Customers" subtitle="Sorted by activity and booking frequency">
-        <DataTable
-          columns={['Customer', 'Email', 'Phone', 'Bookings', 'Orders']}
-          emptyLabel="No customers match your search."
-          rows={filteredCustomers.map((customer) => (
-            <tr key={customer.id}>
-              <Td title>{customer.name}</Td>
-              <Td>{customer.email}</Td>
-              <Td>{customer.phone ?? '—'}</Td>
-              <Td>{customer.bookings}</Td>
-              <Td>{customer.orders}</Td>
-            </tr>
-          ))}
-        />
-      </Panel>
-    </>
-  );
+  const renderCustomers = () => <CustomersPage />;
 
-  const renderParts = () => (
-    <>
-      {renderSectionTitle('Parts', 'Manage the parts catalog and stock performance.', backToDashboardAction)}
-      <section className="metric-grid metric-grid--compact">
-        <SmallStat label="Total Items" value={inventoryStats?.totalItems ?? inventory.length} tone="info" />
-        <SmallStat label="Active Items" value={inventoryStats?.activeItems ?? 0} tone="success" />
-        <SmallStat label="Low Stock" value={inventoryStats?.lowStockCount ?? 0} tone="warning" />
-        <SmallStat label="Out of Stock" value={inventoryStats?.outOfStockCount ?? 0} tone="danger" />
-      </section>
-      <Panel title="Parts Inventory" subtitle="Stock and merchandising overview">
-        <DataTable
-          columns={['Part', 'Category', 'Brand', 'Stock', 'Status']}
-          emptyLabel="No parts match your search."
-          rows={filteredInventory.map((item) => (
-            <tr key={item._id}>
-              <Td title>{item.itemName}</Td>
-              <Td>{item.category}</Td>
-              <Td>{item.brand}</Td>
-              <Td>{item.quantity}</Td>
-              <Td><span className={statusLabelClass(item.status === 'Out Of Stock' ? 'danger' : item.status === 'Low Stock' ? 'warning' : 'success')}>{item.status}</span></Td>
-            </tr>
-          ))}
-        />
-      </Panel>
-    </>
-  );
+  const renderParts = () => <PartsPage />;
 
-  const renderInventory = () => (
-    <>
-      {renderSectionTitle('Inventory', 'Operational stock control and reorder visibility.', backToDashboardAction)}
-      <section className="metric-grid metric-grid--compact">
-        <SmallStat label="Total Items" value={inventoryStats?.totalItems ?? inventory.length} tone="info" />
-        <SmallStat label="Low Stock" value={inventoryStats?.lowStockCount ?? 0} tone="warning" />
-        <SmallStat label="Out of Stock" value={inventoryStats?.outOfStockCount ?? 0} tone="danger" />
-        <SmallStat label="Stock Value" value={formatCurrency(inventoryStats?.totalValue ?? 0)} tone="success" />
-      </section>
-      <Panel title="Inventory Table" subtitle="Searchable inventory register">
-        <DataTable
-          columns={['Item', 'SKU', 'Category', 'Quantity', 'Status']}
-          emptyLabel="No inventory items match your search."
-          rows={filteredInventory.map((item) => (
-            <tr key={item._id}>
-              <Td title>{item.itemName}</Td>
-              <Td>{item.sku}</Td>
-              <Td>{item.category}</Td>
-              <Td>{item.quantity}</Td>
-              <Td><span className={statusLabelClass(item.status === 'Out Of Stock' ? 'danger' : item.status === 'Low Stock' ? 'warning' : 'success')}>{item.status}</span></Td>
-            </tr>
-          ))}
-        />
-      </Panel>
-    </>
-  );
+  const renderInventory = () => <PartsPage />;
 
-  const renderServices = () => (
-    <>
-      {renderSectionTitle('Services', 'Beautiful service catalog and performance snapshot.', backToDashboardAction)}
-      <section className="metric-grid metric-grid--compact">
-        <SmallStat label="Total Services" value={serviceStats?.totalServices ?? stats?.services ?? 0} tone="info" />
-        <SmallStat label="Active Services" value={serviceStats?.activeServices ?? 0} tone="success" />
-        <SmallStat label="Featured" value={serviceStats?.featuredServices ?? 0} tone="warning" />
-        <SmallStat label="Avg Rating" value={(serviceStats?.averageRating ?? 0).toFixed(1)} tone="success" />
-      </section>
-      <section className="section-grid section-grid--services">
-        {filteredServices.map((service) => (
-          <article key={service._id} className="service-card">
-            <div className="service-card__header">
-              <div>
-                <h3>{service.name}</h3>
-                <p>{service.category}</p>
-              </div>
-              <span className={statusLabelClass(service.isActive ? 'success' : 'neutral')}>{service.isActive ? 'Active' : 'Inactive'}</span>
-            </div>
-            <div className="service-card__meta">
-              <span>{formatCurrency(service.price)}</span>
-              <span>{service.estimatedDuration ? `${service.estimatedDuration} min` : 'Duration flexible'}</span>
-            </div>
-            <p className="service-card__description">{service.shortDescription ?? service.fullDescription ?? 'No description available.'}</p>
-          </article>
-        ))}
-      </section>
-    </>
-  );
+  const renderServices = () => <ServicesPage />;
 
-  const renderBanners = () => (
-    <>
-      {renderSectionTitle('Banners', 'Promotions and campaign management in one place.', backToDashboardAction)}
-      <section className="section-grid section-grid--services">
-        {filteredBanners.length ? filteredBanners.map((banner) => (
-          <article key={banner._id} className="banner-card">
-            <div>
-              <h3>{banner.title}</h3>
-              <p>{banner.subtitle ?? 'No subtitle provided.'}</p>
-            </div>
-            <div className="banner-card__meta">
-              <span>Order {banner.displayOrder ?? 0}</span>
-              <span>{banner.isActive ? 'Published' : 'Draft'}</span>
-              <span>{banner.ctaAction ?? 'external'}</span>
-            </div>
-          </article>
-        )) : <EmptyState message="No banners match your search." />}
-      </section>
-    </>
-  );
+  const renderBanners = () => <BannerManagementPage />;
 
   const renderReports = () => (
     <>
@@ -747,6 +571,8 @@ const DashboardApp = () => {
         return renderInventory();
       case 'services':
         return renderServices();
+      case 'categories':
+        return <CategoriesPage />;
       case 'banners':
         return renderBanners();
       case 'reports':
@@ -955,21 +781,6 @@ const MetricCard = ({
     <div className="metric-card__title">{title}</div>
     <div className="metric-card__value">{value}</div>
     <div className="metric-card__subtitle">{subtitle}</div>
-  </article>
-);
-
-const SmallStat = ({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string | number;
-  tone: 'info' | 'success' | 'warning' | 'danger';
-}) => (
-  <article className={`small-stat small-stat--${tone}`}>
-    <span>{label}</span>
-    <strong>{value}</strong>
   </article>
 );
 
