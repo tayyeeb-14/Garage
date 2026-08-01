@@ -76,5 +76,20 @@ export const createBookingRequest = async (payload: BookingPayload): Promise<Cre
   if (!response.ok) {
     throw new Error(body?.message || 'Unable to create booking');
   }
-  return body.data as CreatedBooking;
+
+  const rawBooking = body.data ?? {};
+  const bookingDate =
+    rawBooking.bookingDate ??
+    rawBooking.serviceDate ??
+    rawBooking.scheduledDate ??
+    rawBooking.scheduledAt ??
+    rawBooking.booking_date ??
+    rawBooking.date ??
+    rawBooking.bookingDate ??
+    '';
+
+  return {
+    ...rawBooking,
+    bookingDate,
+  } as CreatedBooking;
 };

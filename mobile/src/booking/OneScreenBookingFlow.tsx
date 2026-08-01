@@ -80,9 +80,12 @@ const pad = (value: number) => String(value).padStart(2, '0');
 
 const toIsoDate = (date: Date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 
-const parseIsoDate = (value: string) => {
+const parseIsoDate = (value?: string | null): Date | null => {
+  if (!value || typeof value !== 'string') return null;
   const [year, month, day] = value.split('-').map(Number);
-  return new Date(year, month - 1, day);
+  if (![year, month, day].every((num) => Number.isFinite(num))) return null;
+  const date = new Date(year, month - 1, day);
+  return Number.isFinite(date.getTime()) ? date : null;
 };
 
 const startOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1);
@@ -97,14 +100,20 @@ const isPastDate = (value: string) => {
   const bookingDay = parseIsoDate(value);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  return bookingDay < today;
+  return bookingDay ? bookingDay < today : true;
 };
 
-const formatDateLabel = (value: string) =>
-  new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).format(parseIsoDate(value));
+const formatDateLabel = (value?: string | null) => {
+  const date = parseIsoDate(value);
+  if (!date) return 'Not selected';
+  return new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).format(date);
+};
 
-const formatShortDay = (value: string) =>
-  new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(parseIsoDate(value));
+const formatShortDay = (value?: string | null) => {
+  const date = parseIsoDate(value);
+  if (!date) return 'Not selected';
+  return new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(date);
+};
 
 const formatMonthTitle = (date: Date) =>
   `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
@@ -275,6 +284,7 @@ const OneScreenBookingFlow = ({
     const todayKey = toIsoDate(today);
     if (selectedDate === todayKey) return 'Today';
     if (selectedDate === toIsoDate(addDays(today, 1))) return 'Tomorrow';
+    if (!date) return 'Not selected';
     return new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(date);
   }, [selectedDate, today]);
 
