@@ -6,16 +6,13 @@ import {
   BarChart3,
   Bell,
   CalendarClock,
-  CheckCircle2,
   ChevronRight,
   CircleAlert,
   CircleDollarSign,
-  ClipboardList,
   LayoutDashboard,
   LogOut,
   Menu,
   Package,
-  Plus,
   RefreshCw,
   Search,
   Settings2,
@@ -41,7 +38,7 @@ import BannerManagementPage from './pages/BannerManagementPage';
 import CustomersPage from './pages/CustomersPage';
 import CategoriesPage from './pages/CategoriesPage';
 
-type ViewId = 'dashboard' | 'bookings' | 'orders' | 'customers' | 'parts' | 'inventory' | 'services' | 'categories' | 'banners' | 'reports' | 'settings';
+type ViewId = 'dashboard' | 'bookings' | 'orders' | 'customers' | 'parts' | 'services' | 'categories' | 'banners' | 'reports' | 'settings';
 
 interface NavigationItem {
   id: ViewId;
@@ -57,7 +54,6 @@ const NAVIGATION: NavigationItem[] = [
   { id: 'orders', label: 'Orders', icon: ShoppingCart },
   { id: 'customers', label: 'Customers', icon: Users },
   { id: 'parts', label: 'Parts', icon: Package },
-  { id: 'inventory', label: 'Inventory', icon: ClipboardList },
   { id: 'services', label: 'Services', icon: Wrench },
   { id: 'categories', label: 'Categories', icon: Package },
   { id: 'banners', label: 'Banners', icon: Megaphone },
@@ -183,7 +179,6 @@ const DashboardApp = () => {
     orders: stats ? String(stats.orders) : undefined,
     customers: stats ? String(stats.customers) : undefined,
     parts: stats ? String(stats.products) : undefined,
-    inventory: inventoryStats ? `${inventoryStats.lowStockCount} low` : undefined,
     services: stats ? String(stats.services) : undefined,
     categories: undefined,
     banners: banners.length ? String(banners.length) : undefined,
@@ -227,6 +222,16 @@ const DashboardApp = () => {
     }
   };
 
+  // Calculate revenue from completed/paid orders
+  const calculatedRevenue = useMemo(() => {
+    return orders.reduce((total, order) => {
+      if (order.orderStatus === 'completed' || order.paymentStatus === 'paid') {
+        return total + (order.totalAmount ?? 0);
+      }
+      return total;
+    }, 0);
+  }, [orders]);
+
   const kpiCards = [
     {
       title: 'Total Customers',
@@ -245,6 +250,14 @@ const DashboardApp = () => {
       icon: CalendarClock,
     },
     {
+      title: 'Pending Bookings',
+      value: bookingStats?.pending ?? 0,
+      subtitle: 'Awaiting confirmation',
+      tone: 'warning' as const,
+      trend: '-4.3%',
+      icon: Clock3,
+    },
+    {
       title: 'Total Orders',
       value: stats?.orders ?? 0,
       subtitle: 'Sales generated',
@@ -254,30 +267,14 @@ const DashboardApp = () => {
     },
     {
       title: 'Revenue',
-      value: formatCurrency(stats?.revenue ?? 0),
-      subtitle: 'Gross turnover',
+      value: formatCurrency(calculatedRevenue),
+      subtitle: 'Completed & paid orders',
       tone: 'success' as const,
       trend: '+14.7%',
       icon: CircleDollarSign,
     },
     {
-      title: 'Pending Jobs',
-      value: bookingStats?.pending ?? 0,
-      subtitle: 'Needs attention',
-      tone: 'warning' as const,
-      trend: '-4.3%',
-      icon: Clock3,
-    },
-    {
-      title: 'Completed Jobs',
-      value: bookingStats?.completed ?? 0,
-      subtitle: 'Closed tickets',
-      tone: 'success' as const,
-      trend: '+9.8%',
-      icon: CheckCircle2,
-    },
-    {
-      title: 'Inventory Value',
+      title: 'Parts Value',
       value: formatCurrency(inventoryStats?.totalValue ?? 0),
       subtitle: 'Stock valuation',
       tone: 'info' as const,
@@ -285,21 +282,29 @@ const DashboardApp = () => {
       icon: Package,
     },
     {
-      title: 'Low Stock Items',
+      title: 'Low Stock Parts',
       value: inventoryStats?.lowStockCount ?? 0,
       subtitle: 'Reorder soon',
       tone: 'danger' as const,
       trend: '+2.1%',
       icon: CircleAlert,
     },
+    {
+      title: 'Active Services',
+      value: stats?.services ?? 0,
+      subtitle: 'Available offerings',
+      tone: 'success' as const,
+      trend: '+3.2%',
+      icon: Wrench,
+    },
   ];
 
   const quickActions = [
-    { label: 'Add Booking', view: 'bookings' as ViewId, icon: Plus },
-    { label: 'Add Service', view: 'services' as ViewId, icon: Sparkles },
-    { label: 'Add Part', view: 'parts' as ViewId, icon: Package },
-    { label: 'Add Banner', view: 'banners' as ViewId, icon: Megaphone },
-    { label: 'Create Invoice', view: 'orders' as ViewId, icon: ClipboardList },
+    { label: 'Manage Bookings', view: 'bookings' as ViewId, icon: CalendarClock },
+    { label: 'Manage Services', view: 'services' as ViewId, icon: Wrench },
+    { label: 'Manage Parts', view: 'parts' as ViewId, icon: Package },
+    { label: 'Manage Banners', view: 'banners' as ViewId, icon: Megaphone },
+    { label: 'Create Invoice', view: 'orders' as ViewId, icon: ShoppingCart },
   ];
 
   const backToDashboardAction = (
@@ -326,7 +331,7 @@ const DashboardApp = () => {
           <p className="eyebrow">{greeting}, Admin 👋</p>
           <h1 className="hero-title">Today&apos;s Overview</h1>
           <p className="hero-subtitle">
-            Premium command center for bookings, orders, customers, inventory, and service operations.
+            Premium command center for bookings, orders, customers, parts, and service operations.
           </p>
         </div>
         <div className="hero-surface">
@@ -436,10 +441,10 @@ const DashboardApp = () => {
           />
         </Panel>
 
-        <Panel title="Inventory Alerts" subtitle="Items requiring immediate attention">
+        <Panel title="Low Stock Parts" subtitle="Items requiring immediate attention">
           <DataTable
             columns={['Item', 'Stock', 'Threshold', 'Status']}
-            emptyLabel="No inventory alerts."
+            emptyLabel="No parts alerts."
             rows={lowStock.slice(0, 6).map((item) => (
               <tr key={item._id}>
                 <Td title>{item.name}</Td>
@@ -488,8 +493,6 @@ const DashboardApp = () => {
   const renderCustomers = () => <CustomersPage />;
 
   const renderParts = () => <PartsPage />;
-
-  const renderInventory = () => <PartsPage />;
 
   const renderServices = () => <ServicesPage />;
 
@@ -567,8 +570,6 @@ const DashboardApp = () => {
         return renderCustomers();
       case 'parts':
         return renderParts();
-      case 'inventory':
-        return renderInventory();
       case 'services':
         return renderServices();
       case 'categories':
@@ -659,7 +660,7 @@ const DashboardApp = () => {
                 type="search"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Search bookings, orders, customers..."
+                placeholder="Search bookings, orders, customers, parts..."
               />
             </label>
 
