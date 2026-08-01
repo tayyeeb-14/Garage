@@ -84,11 +84,19 @@ type HomeDashboardProps = {
   onNavigateTab?: (tab: TabKey) => void;
   onOpenMyBookings?: () => void;
   onOpenServiceDetail?: (serviceId: string) => void;
+  currentUserFullName?: string;
+  unreadNotificationCount?: number;
 };
 
 type FilterType = 'category' | 'brand' | 'vehicle' | 'price' | 'availability';
 
-const HomeDashboard = ({ onNavigateTab, onOpenMyBookings, onOpenServiceDetail }: HomeDashboardProps) => {
+const HomeDashboard = ({
+  onNavigateTab,
+  onOpenMyBookings,
+  onOpenServiceDetail,
+  currentUserFullName,
+  unreadNotificationCount,
+}: HomeDashboardProps) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [services, setServices] = useState<PublicService[]>([]);
   const [topServices, setTopServices] = useState<PublicService[]>([]);
@@ -97,7 +105,6 @@ const HomeDashboard = ({ onNavigateTab, onOpenMyBookings, onOpenServiceDetail }:
   const [recentOrders, setRecentOrders] = useState<DashboardOrder[]>([]);
   const [currentBooking, setCurrentBooking] = useState<DashboardOrder | null>(null);
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [notificationCount, setNotificationCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -146,7 +153,6 @@ const HomeDashboard = ({ onNavigateTab, onOpenMyBookings, onOpenServiceDetail }:
 
       const activeBooking = orderList.find((order) => ['pending', 'confirmed', 'in_service', 'ready_for_pickup'].includes(order.orderStatus));
       setCurrentBooking(activeBooking ?? null);
-      setNotificationCount(orderList.filter((order) => !['completed', 'cancelled'].includes(order.orderStatus)).length);
     } catch {
       setError('Unable to load dashboard data. Pull to refresh or try again.');
     } finally {
@@ -389,7 +395,7 @@ const HomeDashboard = ({ onNavigateTab, onOpenMyBookings, onOpenServiceDetail }:
 
           <View style={styles.headerCopy}>
             <Text style={styles.greeting}>{`${greeting} 👋`}</Text>
-            <Text style={styles.brandName}>M Enterprises</Text>
+            <Text style={styles.brandName}>{currentUserFullName?.trim() || profile?.fullName?.trim() || 'Guest'}</Text>
           </View>
 
           <Pressable
@@ -399,9 +405,9 @@ const HomeDashboard = ({ onNavigateTab, onOpenMyBookings, onOpenServiceDetail }:
             accessibilityLabel="Open notifications"
           >
             <Bell size={24} color={colors.text} strokeWidth={2} />
-            {notificationCount > 0 ? (
+            {(unreadNotificationCount ?? 0) > 0 ? (
               <View style={styles.badge}>
-                <Text style={styles.badgeText}>{notificationCount > 9 ? '9+' : notificationCount}</Text>
+                <Text style={styles.badgeText}>{(unreadNotificationCount ?? 0) > 9 ? '9+' : unreadNotificationCount}</Text>
               </View>
             ) : null}
           </Pressable>

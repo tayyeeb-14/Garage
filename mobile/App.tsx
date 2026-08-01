@@ -9,7 +9,8 @@ import ProfileScreen from './src/screens/ProfileScreen';
 import ServicesScreen from './src/services/ServiceScreen';
 import PartsScreen from './src/screens/PartsScreen';
 import BottomTabBar, { TabKey } from './src/components/BottomTabBar';
-import { clearAuthState, getAuthTokens, verifyAuthToken } from './src/services/authService';
+import { initialNotifications, NotificationItem } from './src/data/notifications';
+import { clearAuthState, getAuthTokens, getStoredAuthUser, verifyAuthToken } from './src/services/authService';
 
 const OfflineScreen = ({ onRetry }: { onRetry: () => void }) => (
   <View style={styles.offlineContainer}>
@@ -27,6 +28,8 @@ export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [authStatus, setAuthStatus] = useState<AuthStatus>('checking');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authUserName, setAuthUserName] = useState('');
+  const [notifications, setNotifications] = useState<NotificationItem[]>(initialNotifications);
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [showMyBookings, setShowMyBookings] = useState(false);
   const [servicesIntent, setServicesIntent] = useState<{ serviceId?: string } | null>(null);
@@ -48,10 +51,12 @@ export default function App() {
   };
 
   const verifyAuth = async () => {
-    const tokens = await getAuthTokens();
+    await getAuthTokens();
     const result = await verifyAuthToken();
     setAuthStatus(result);
     setIsAuthenticated(result === 'authenticated');
+    const storedUser = result === 'authenticated' ? await getStoredAuthUser() : null;
+    setAuthUserName(storedUser?.fullName?.trim() || '');
   };
 
   useEffect(() => {
@@ -65,6 +70,10 @@ export default function App() {
   const handleAuthSuccess = () => {
     setAuthStatus('authenticated');
     setIsAuthenticated(true);
+    void (async () => {
+      const storedUser = await getStoredAuthUser();
+      setAuthUserName(storedUser?.fullName?.trim() || '');
+    })();
   };
 
   const handleRetry = () => {
@@ -75,6 +84,8 @@ export default function App() {
 
   const handleLogout = async () => {
     await clearAuthState();
+    setAuthUserName('');
+    setNotifications(initialNotifications);
     setActiveTab('home');
     setShowMyBookings(false);
     setAuthStatus('unauthenticated');
@@ -113,6 +124,8 @@ export default function App() {
                 setServicesIntent({ serviceId });
                 setActiveTab('services');
               }}
+              currentUserFullName={authUserName}
+              unreadNotificationCount={notifications.filter((item) => !item.read).length}
             />
           ) : activeTab === 'services' ? (
             <ServicesScreen
@@ -123,7 +136,12 @@ export default function App() {
           ) : activeTab === 'parts' ? (
             <PartsScreen />
           ) : activeTab === 'notifications' ? (
-            <NotificationsScreen />
+            <NotificationsScreen
+              notifications={notifications}
+              onMarkAllRead={() => {
+                setNotifications((current) => current.map((item) => (item.read ? item : { ...item, read: true })));
+              }}
+            />
           ) : (
             <ProfileScreen
               showMyBookings={showMyBookings}

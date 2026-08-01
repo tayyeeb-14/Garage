@@ -1,37 +1,49 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { BellRing, CheckCircle2, Sparkles, Wrench } from 'lucide-react-native';
+import { NotificationItem } from '../data/notifications';
 
-const notifications = [
-  { title: 'Booking confirmed', text: 'Your pickup has been scheduled for tomorrow morning.', icon: <CheckCircle2 size={18} color="#2563eb" /> },
-  { title: 'Mechanic assigned', text: 'A certified technician is on the way to your location.', icon: <Wrench size={18} color="#2563eb" /> },
-  { title: 'Offer unlocked', text: 'Enjoy 10% off your next full bike or car service.', icon: <Sparkles size={18} color="#2563eb" /> },
-];
+type NotificationsScreenProps = {
+  notifications: NotificationItem[];
+  onMarkAllRead?: () => void;
+};
 
-const NotificationsScreen = () => (
-  <View style={styles.container}>
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-      <View style={styles.headerCard}>
-        <View>
-          <Text style={styles.eyebrow}>Notifications</Text>
-          <Text style={styles.header}>Your service updates</Text>
-        </View>
-        <View style={styles.iconWrap}>
-          <BellRing size={20} color="#2563eb" />
-        </View>
-      </View>
-      {notifications.map((item) => (
-        <View key={item.title} style={styles.card}>
-          <View style={styles.iconCircle}>{item.icon}</View>
-          <View style={styles.textWrap}>
-            <Text style={styles.title}>{item.title}</Text>
-            <Text style={styles.text}>{item.text}</Text>
+const iconMap = {
+  booking: <CheckCircle2 size={18} color="#2563eb" />,
+  mechanic: <Wrench size={18} color="#2563eb" />,
+  offer: <Sparkles size={18} color="#2563eb" />,
+} as const;
+
+const NotificationsScreen = ({ notifications, onMarkAllRead }: NotificationsScreenProps) => {
+  useEffect(() => {
+    onMarkAllRead?.();
+  }, []);
+
+  return (
+    <View style={styles.container}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+        <View style={styles.headerCard}>
+          <View>
+            <Text style={styles.eyebrow}>Notifications</Text>
+            <Text style={styles.header}>Your service updates</Text>
+          </View>
+          <View style={styles.iconWrap}>
+            <BellRing size={20} color="#2563eb" />
           </View>
         </View>
-      ))}
-    </ScrollView>
-  </View>
-);
+        {notifications.map((item) => (
+          <View key={item.id} style={styles.card}>
+            <View style={styles.iconCircle}>{iconMap[item.iconKey]}</View>
+            <View style={styles.textWrap}>
+              <Text style={styles.title}>{item.title}</Text>
+              <Text style={styles.text}>{item.text}</Text>
+            </View>
+          </View>
+        ))}
+      </ScrollView>
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
