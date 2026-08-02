@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -16,9 +16,8 @@ import {
 import {
   Battery,
   Bell,
-  BookOpen,
-  Car,
   CalendarDays,
+  Car,
   Circle,
   CircleStop,
   Clock3,
@@ -40,7 +39,7 @@ import HeroBannerCarousel from '../components/home/HeroBannerCarousel';
 import IconCircle from '../components/ui/IconCircle';
 import PremiumButton from '../components/ui/PremiumButton';
 import SectionHeader from '../components/ui/SectionHeader';
-import { colors, iconSize, iconStroke, radius, shadow, spacing } from '../theme/tokens';
+import { colors, radius, shadow, spacing } from '../theme/tokens';
 import {
   DashboardOrder,
   DashboardStats,
@@ -66,19 +65,47 @@ const categoryItems = [
   { label: 'Battery', icon: Battery },
   { label: 'Tyres', icon: Circle },
   { label: 'Wash & Cleaning', icon: Sparkles },
+  { label: 'AC Service', icon: Droplets },
+  { label: 'Denting', icon: Navigation },
+  { label: 'Painting', icon: Sparkles },
+  { label: 'Engine Repair', icon: Truck },
 ];
 
 const quickActions = [
-  { label: 'Book Service', subtitle: 'Schedule now', icon: Wrench, backgroundColor: colors.primarySoft, iconColor: colors.primaryBright, tab: 'services' as TabKey },
-  { label: 'My Bookings', subtitle: 'View all', icon: CalendarDays, backgroundColor: colors.successSoft, iconColor: colors.success, openBookings: true },
-  { label: 'Track Order', subtitle: 'Live status', icon: Navigation, backgroundColor: colors.accent, iconColor: colors.primaryBright, openBookings: true },
-  { label: 'Emergency', subtitle: '24x7 Help', icon: PhoneCall, backgroundColor: colors.warningSoft, iconColor: colors.warning, emergency: true },
+  {
+    label: 'Book Service',
+    subtitle: 'Schedule now',
+    icon: Wrench,
+    backgroundColor: colors.primarySoft,
+    iconColor: colors.primaryBright,
+    tab: 'services' as TabKey,
+  },
+  {
+    label: 'My Bookings',
+    subtitle: 'View all',
+    icon: CalendarDays,
+    backgroundColor: colors.successSoft,
+    iconColor: colors.success,
+    openBookings: true,
+  },
+  {
+    label: 'Track Order',
+    subtitle: 'Live status',
+    icon: Navigation,
+    backgroundColor: colors.accent,
+    iconColor: colors.primaryBright,
+    openBookings: true,
+  },
+  {
+    label: 'Emergency Help',
+    subtitle: 'Roadside aid',
+    icon: PhoneCall,
+    backgroundColor: colors.warningSoft,
+    iconColor: colors.warning,
+    emergency: true,
+  },
 ];
 
-const normalizeText = (value: string) => value.toLowerCase().trim();
-
-const uniqueValues = (values: Array<string | undefined | null>) =>
-  Array.from(new Set(values.filter((value): value is string => Boolean(value && value.trim().length))));
 
 type HomeDashboardProps = {
   onNavigateTab?: (tab: TabKey) => void;
@@ -89,6 +116,11 @@ type HomeDashboardProps = {
 };
 
 type FilterType = 'category' | 'brand' | 'vehicle' | 'price' | 'availability';
+
+const normalizeText = (value: string) => value.toLowerCase().trim();
+
+const uniqueValues = (values: Array<string | undefined | null>) =>
+  Array.from(new Set(values.filter((value): value is string => Boolean(value && value.trim().length))));
 
 const HomeDashboard = ({
   onNavigateTab,
@@ -127,15 +159,13 @@ const HomeDashboard = ({
     setError('');
     const startedAt = Date.now();
     try {
-      if (!isRefresh) {
-        setLoading(true);
-      }
+      if (!isRefresh) setLoading(true);
 
       const [userProfile, serviceList, topServiceList, productList, vehicleList, orderList, dashboardStats, activeBanners] = await Promise.all([
         fetchUserProfile(),
         fetchPublicServices(),
         fetchTopServices(),
-        getPublicPartsCached({ limit: 8 }),
+        getPublicPartsCached({ limit: 15 }),
         fetchVehicles(),
         fetchRecentOrders(),
         fetchDashboardStats(),
@@ -222,6 +252,9 @@ const HomeDashboard = ({
     return normalizeText(`${activeVehicle.make} ${activeVehicle.modelName}`);
   }, [activeVehicle]);
 
+  const getImageUri = (item: { imageUrl?: string; thumbnailImage?: string; image?: string } | null | undefined) =>
+    item?.imageUrl ?? item?.thumbnailImage ?? item?.image ?? '';
+
   const searchQuery = normalizeText(debouncedSearchText);
   const hasSearchQuery = searchQuery.length > 0;
 
@@ -231,8 +264,7 @@ const HomeDashboard = ({
   }, [services, topServices]);
 
   const filteredServices = useMemo(() => {
-    const source = hasSearchQuery || activeCategory || activeVehicleFilter || activePriceFilter ? searchableServices : topServices.length ? topServices : services.filter((item) => item.isFeatured || item.popular || item.featured).slice(0, 6);
-
+    const source = hasSearchQuery || activeCategory || activeVehicleFilter || activePriceFilter ? searchableServices : topServices.length ? topServices : services.filter((item) => item.isFeatured || item.popular || item.featured).slice(0, 12);
     return source.filter((service) => {
       const textBlob = normalizeText(
         [
@@ -264,9 +296,7 @@ const HomeDashboard = ({
   }, [activeCategory, activePriceFilter, activeVehicleFilter, activeVehicleLabel, hasSearchQuery, searchQuery, searchableServices, services, topServices]);
 
   const filteredParts = useMemo(() => {
-    const source = hasSearchQuery || activeBrand || activeAvailabilityFilter ? spareParts : spareParts;
-
-    return source.filter((part) => {
+    return spareParts.filter((part) => {
       const textBlob = normalizeText([part.itemName, part.brand, part.category, part.sku, part.shortDescription, part.description].filter(Boolean).join(' '));
       const matchesQuery = !hasSearchQuery || textBlob.includes(searchQuery);
       const matchesBrand = !activeBrand || normalizeText(part.brand).includes(normalizeText(activeBrand));
@@ -297,8 +327,18 @@ const HomeDashboard = ({
 
   const searchResultsCount = filteredServices.length + filteredParts.length + filteredCategories.length;
 
-  const visibleServices = filteredServices.slice(0, 8);
-  const visibleParts = filteredParts.slice(0, 8);
+  const defaultPopularServices = useMemo(() => {
+    const fallback = services.filter((service) => service.isFeatured || service.popular || service.featured || Boolean(service.category));
+    const base = topServices.length ? topServices : fallback;
+    return base.slice(0, 12);
+  }, [services, topServices]);
+
+  const defaultSpareParts = useMemo(() => spareParts.slice(0, 15), [spareParts]);
+
+  const servicesToDisplay = hasSearchQuery ? filteredServices : defaultPopularServices;
+  const partsToDisplay = hasSearchQuery ? filteredParts : defaultSpareParts;
+  const visibleServices = servicesToDisplay;
+  const visibleParts = partsToDisplay;
   const visibleCategories = filteredCategories.slice(0, 6);
 
   const filterCategories = useMemo(
@@ -307,6 +347,7 @@ const HomeDashboard = ({
   );
 
   const filterBrands = useMemo(() => uniqueValues(spareParts.map((part) => part.brand)).slice(0, 8), [spareParts]);
+
   const filterVehicles = useMemo(
     () =>
       uniqueValues([
@@ -315,6 +356,7 @@ const HomeDashboard = ({
       ]).slice(0, 8),
     [activeVehicle, vehicles],
   );
+
   const filterPriceOptions = ['Under ₹500', '₹500 - ₹1000', 'Above ₹1000'];
   const filterAvailabilityOptions = ['All', 'In Stock', 'Low Stock'];
 
@@ -368,6 +410,12 @@ const HomeDashboard = ({
     }
   };
 
+  const vehicleImageUri = getImageUri(activeVehicle as unknown as { imageUrl?: string; thumbnailImage?: string; image?: string });
+  const vehicleHasImage = Boolean(vehicleImageUri);
+  const vehicleYear = activeVehicle?.year ? `${activeVehicle.year}` : 'Year unknown';
+  const vehicleLastService = activeVehicle?.lastServiceDate ? new Date(activeVehicle.lastServiceDate).toLocaleDateString() : 'No recent service';
+  const vehicleNextService = nextServiceDate ? nextServiceDate.toLocaleDateString() : 'Schedule soon';
+
   return (
     <View style={styles.screen}>
       <ScrollView
@@ -378,33 +426,31 @@ const HomeDashboard = ({
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primaryBright} />}
       >
         {error ? (
-          <View style={styles.errorBanner}>
-            <Text style={styles.errorText}>{error}</Text>
+          <View style={styles.notifyBanner}>
+            <Text style={styles.notifyText}>{error}</Text>
           </View>
         ) : null}
 
-        <View style={styles.header}>
+        <View style={styles.heroHeader}>
+          <View style={styles.heroHeaderLeft}>
+            <Text style={styles.greeting}>{`${greeting} 👋`}</Text>
+            <Text style={styles.brandName}>{currentUserFullName?.trim() || profile?.fullName?.trim() || 'Guest'}</Text>
+          </View>
           <Pressable
-            style={({ pressed }) => [styles.headerIconButton, pressed && styles.pressed]}
+            style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
             onPress={() => onNavigateTab?.('profile')}
             accessibilityRole="button"
             accessibilityLabel="Open menu"
           >
-            <Menu size={24} color={colors.text} strokeWidth={2} />
+            <Menu size={22} color={colors.text} strokeWidth={2} />
           </Pressable>
-
-          <View style={styles.headerCopy}>
-            <Text style={styles.greeting}>{`${greeting} 👋`}</Text>
-            <Text style={styles.brandName}>{currentUserFullName?.trim() || profile?.fullName?.trim() || 'Guest'}</Text>
-          </View>
-
           <Pressable
-            style={({ pressed }) => [styles.headerIconButton, pressed && styles.pressed]}
+            style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
             onPress={() => onNavigateTab?.('notifications')}
             accessibilityRole="button"
             accessibilityLabel="Open notifications"
           >
-            <Bell size={24} color={colors.text} strokeWidth={2} />
+            <Bell size={22} color={colors.text} strokeWidth={2} />
             {(unreadNotificationCount ?? 0) > 0 ? (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>{(unreadNotificationCount ?? 0) > 9 ? '9+' : unreadNotificationCount}</Text>
@@ -413,11 +459,19 @@ const HomeDashboard = ({
           </Pressable>
         </View>
 
+        <HeroBannerCarousel
+          banners={banners}
+          bannerIndex={bannerIndex}
+          onIndexChange={setBannerIndex}
+          fallbackImage={heroFallbackImage}
+          onBookPress={() => onNavigateTab?.('services')}
+        />
+
         <View style={styles.searchSection}>
           <View style={styles.searchBar}>
-            <Search size={22} color={colors.textLight} strokeWidth={2.2} />
+            <Search size={20} color={colors.textLight} strokeWidth={2.2} />
             <TextInput
-              placeholder="Search services, parts..."
+              placeholder="Search services, spare parts, brands..."
               placeholderTextColor={colors.textLight}
               style={styles.searchInput}
               value={searchText}
@@ -439,7 +493,7 @@ const HomeDashboard = ({
                 <X size={16} color={colors.textLight} strokeWidth={2.4} />
               </Pressable>
             ) : searchLoading ? (
-              <ActivityIndicator size="small" color={colors.primaryBright} style={styles.searchLoading} />
+              <ActivityIndicator size="small" color={colors.primaryBright} style={styles.searchLoader} />
             ) : null}
             <Pressable
               style={({ pressed }) => [styles.filterButton, pressed && styles.pressed]}
@@ -467,7 +521,7 @@ const HomeDashboard = ({
               {searchLoading ? (
                 <View style={styles.searchLoadingRow}>
                   <ActivityIndicator size="small" color={colors.primaryBright} />
-                  <Text style={styles.searchLoadingText}>Updating services and parts...</Text>
+                  <Text style={styles.searchLoadingText}>Filtering services and parts…</Text>
                 </View>
               ) : searchResultsCount > 0 ? (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.suggestionRail}>
@@ -483,39 +537,30 @@ const HomeDashboard = ({
                 </ScrollView>
               ) : (
                 <View style={styles.searchEmptyState}>
-                  <Text style={styles.searchEmptyTitle}>Nothing matched that search</Text>
-                  <Text style={styles.searchEmptyText}>Try a service, spare part, category, or brand.</Text>
-                  <PremiumButton label="Clear Search" variant="secondary" compact onPress={resetSearchAndFilters} />
+                  <Text style={styles.searchEmptyTitle}>No matches found</Text>
+                  <Text style={styles.searchEmptyText}>Try another service name, part, category, or brand.</Text>
+                  <PremiumButton label="Clear Search" variant="secondary" compact onPress={resetSearchAndFilters} style={styles.searchEmptyButton} />
                 </View>
               )}
             </View>
           ) : null}
         </View>
 
-        <HeroBannerCarousel
-          banners={banners}
-          bannerIndex={bannerIndex}
-          onIndexChange={setBannerIndex}
-          fallbackImage={heroFallbackImage}
-          onBookPress={() => onNavigateTab?.('services')}
-        />
-
         <View style={styles.section}>
+          <View style={styles.sectionHeaderRow}>
+            <SectionHeader title="Quick Actions" actionLabel="See all" onActionPress={() => onNavigateTab?.('services')} />
+          </View>
           <View style={styles.quickActionGrid}>
             {quickActions.map((action) => {
               const Icon = action.icon;
               return (
                 <Pressable
                   key={action.label}
-                  style={({ pressed }) => [
-                    styles.quickActionCard,
-                    { flexBasis: isWide ? '23%' : '48%' },
-                    pressed && styles.pressed,
-                  ]}
+                  style={({ pressed }) => [styles.quickActionCard, pressed && styles.pressed]}
                   onPress={() => handleQuickAction(action)}
                 >
-                  <IconCircle size={56} backgroundColor={action.backgroundColor}>
-                    <Icon size={24} color={action.iconColor} strokeWidth={2} />
+                  <IconCircle size={52} backgroundColor={action.backgroundColor}>
+                    <Icon size={22} color={action.iconColor} strokeWidth={2} />
                   </IconCircle>
                   <Text style={styles.quickActionTitle}>{action.label}</Text>
                   <Text style={styles.quickActionSubtitle}>{action.subtitle}</Text>
@@ -527,13 +572,13 @@ const HomeDashboard = ({
 
         <View style={styles.section}>
           <SectionHeader title="Service Categories" actionLabel="View all" onActionPress={() => onNavigateTab?.('services')} />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalRail}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRail}>
             {visibleCategories.map((category) => {
               const Icon = category.icon;
               return (
                 <Pressable
                   key={category.label}
-                  style={({ pressed }) => [styles.categoryCard, { width: isWide ? 116 : 108 }, pressed && styles.pressed]}
+                  style={({ pressed }) => [styles.categoryCard, pressed && styles.pressed]}
                   onPress={() => onNavigateTab?.('services')}
                 >
                   <IconCircle size={56} backgroundColor={colors.surfaceSoft}>
@@ -549,60 +594,122 @@ const HomeDashboard = ({
         </View>
 
         <View style={styles.section}>
+          <SectionHeader title="My Vehicle" actionLabel="View Details" onActionPress={() => onNavigateTab?.('profile')} />
+          {loading ? (
+            <View style={styles.vehicleSkeletonCard}>
+              <View style={styles.vehicleSkeletonTop} />
+              <View style={styles.vehicleSkeletonRow} />
+              <View style={styles.vehicleSkeletonRowShort} />
+            </View>
+          ) : activeVehicle ? (
+            <View style={styles.vehicleCard}>
+              <View style={styles.vehicleImageSection}>
+                {vehicleHasImage ? (
+                  <Image source={{ uri: vehicleImageUri }} style={styles.vehicleImage} />
+                ) : (
+                  <View style={styles.vehiclePlaceholderImage}>
+                    <Car size={42} color={colors.primaryBright} strokeWidth={2} />
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.vehicleDetails}>
+                <View style={styles.vehicleTitleRow}>
+                  <Text style={styles.vehicleTitle} numberOfLines={1}>{`${activeVehicle.make} ${activeVehicle.modelName}`}</Text>
+                  <View style={styles.vehicleBadge}>
+                    <Text style={styles.vehicleBadgeText}>Primary</Text>
+                  </View>
+                </View>
+                <Text style={styles.vehicleMeta}>{activeVehicle.plateNumber}</Text>
+                <Text style={styles.vehicleMeta}>{vehicleYear}</Text>
+                <View style={styles.vehicleStatusRow}>
+                  <View style={styles.vehicleStatusItem}>
+                    <CalendarDays size={14} color={colors.textMuted} strokeWidth={2} />
+                    <Text style={styles.vehicleStatusText}>Last: {vehicleLastService}</Text>
+                  </View>
+                </View>
+                <View style={styles.vehicleStatusRow}>
+                  <View style={styles.vehicleStatusItem}>
+                    <Clock3 size={14} color={colors.textMuted} strokeWidth={2} />
+                    <Text style={styles.vehicleStatusText}>Next: {vehicleNextService}</Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.vehicleActions}>
+                <Pressable style={({ pressed }) => [styles.vehicleActionLink, pressed && styles.pressed]} onPress={() => onNavigateTab?.('profile')}>
+                  <Text style={styles.vehicleActionLinkText}>View Details</Text>
+                </Pressable>
+                <PremiumButton label="Book Again" onPress={() => onNavigateTab?.('services')} style={styles.vehicleActionButton} />
+              </View>
+            </View>
+          ) : (
+            <View style={styles.emptyCard}>
+              <IconCircle size={64} backgroundColor={colors.primarySoft}>
+                <Car size={28} color={colors.primaryBright} strokeWidth={2} />
+              </IconCircle>
+              <Text style={styles.emptyTitle}>Add your first vehicle</Text>
+              <Text style={styles.emptyText}>Register a vehicle to unlock personalised service recommendations.</Text>
+              <PremiumButton label="Add Vehicle" compact onPress={() => onNavigateTab?.('profile')} style={styles.emptyActionButton} />
+            </View>
+          )}
+        </View>
+
+        <View style={styles.section}>
           <SectionHeader title="Popular Services" actionLabel="View all" onActionPress={() => onNavigateTab?.('services')} />
           {loading ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalRail}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.serviceRail}>
               {Array.from({ length: 3 }).map((_, index) => (
                 <View key={`service-skeleton-${index}`} style={styles.serviceSkeletonCard} />
               ))}
             </ScrollView>
           ) : visibleServices.length > 0 ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalRail}>
-              {visibleServices.map((service) => (
-                <Pressable
-                  key={service._id}
-                  style={({ pressed }) => [styles.serviceCard, { width: isWide ? 260 : 230 }, pressed && styles.pressed]}
-                  onPress={() => {
-                    if (onOpenServiceDetail) {
-                      onOpenServiceDetail(service._id);
-                      return;
-                    }
-                    onNavigateTab?.('services');
-                  }}
-                >
-                  <View style={styles.cardImageWrap}>
-                    {service.thumbnailImage ? (
-                      <Image source={{ uri: service.thumbnailImage }} style={styles.cardImage} />
-                    ) : (
-                      <View style={styles.cardImagePlaceholder}>
-                        <Wrench size={32} color={colors.primaryBright} strokeWidth={2} />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.serviceRail}>
+              {visibleServices.map((service) => {
+                const imageUri = getImageUri(service);
+                return (
+                  <Pressable
+                    key={service._id}
+                    style={({ pressed }) => [styles.serviceCard, pressed && styles.pressed]}
+                    onPress={() => {
+                      if (onOpenServiceDetail) {
+                        onOpenServiceDetail(service._id);
+                        return;
+                      }
+                      onNavigateTab?.('services');
+                    }}
+                  >
+                    <View style={styles.cardImageWrap}>
+                      {imageUri ? (
+                        <Image source={{ uri: imageUri }} style={styles.cardImage} />
+                      ) : (
+                        <View style={styles.cardImagePlaceholder}>
+                          <Wrench size={32} color={colors.primaryBright} strokeWidth={2} />
+                        </View>
+                      )}
+                      <View style={styles.wishlistButton}>
+                        <Heart size={14} color="#FFFFFF" fill="transparent" strokeWidth={2} />
                       </View>
-                    )}
-                    <View style={styles.wishlistButton}>
-                      <Heart size={14} color="#FFFFFF" fill="transparent" strokeWidth={2} />
-                    </View>
-                    {service.rating ? (
                       <View style={styles.ratingBadge}>
                         <Star size={10} color={colors.warning} fill={colors.warning} strokeWidth={0} />
-                        <Text style={styles.ratingText}>{service.rating.toFixed(1)}</Text>
+                        <Text style={styles.ratingText}>{service.rating?.toFixed(1) ?? '4.8'}</Text>
                       </View>
-                    ) : null}
-                  </View>
-
-                  <View style={styles.cardBody}>
-                    <Text style={styles.cardTitle} numberOfLines={2}>
-                      {service.name}
-                    </Text>
-                    <Text style={styles.cardLabel}>Starting at</Text>
-                    <Text style={styles.cardPrice}>{formatCurrency(service.price)}</Text>
-                    <View style={styles.cardMetaRow}>
-                      <Clock3 size={13} color={colors.textMuted} strokeWidth={2} />
-                      <Text style={styles.cardMeta}>{formatServiceDuration(service)}</Text>
-                      {service.bookings ? <Text style={styles.cardMeta}>• {service.bookings} bookings</Text> : null}
                     </View>
-                  </View>
-                </Pressable>
-              ))}
+                    <View style={styles.cardBody}>
+                      <Text style={styles.cardTitle} numberOfLines={2}>
+                        {service.name}
+                      </Text>
+                      <Text style={styles.cardLabel}>Starting at</Text>
+                      <Text style={styles.cardPrice}>{formatCurrency(service.price)}</Text>
+                      <View style={styles.cardMetaRow}>
+                        <Clock3 size={13} color={colors.textMuted} strokeWidth={2} />
+                        <Text style={styles.cardMeta}>{formatServiceDuration(service)}</Text>
+                        {service.bookings ? <Text style={styles.cardMeta}>• {service.bookings} bookings</Text> : null}
+                      </View>
+                    </View>
+                  </Pressable>
+                );
+              })}
             </ScrollView>
           ) : (
             <View style={styles.emptyCard}>
@@ -615,55 +722,52 @@ const HomeDashboard = ({
         <View style={styles.section}>
           <SectionHeader title="Spare Parts" actionLabel="View all" onActionPress={() => onNavigateTab?.('parts')} />
           {loading ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalRail}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.serviceRail}>
               {Array.from({ length: 3 }).map((_, index) => (
                 <View key={`part-skeleton-${index}`} style={styles.partSkeletonCard} />
               ))}
             </ScrollView>
           ) : visibleParts.length > 0 ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalRail}>
-              {visibleParts.map((part) => (
-                <View key={part._id} style={[styles.partCard, { width: isWide ? 220 : 200 }]}>
-                  <View style={styles.partImageWrap}>
-                    {part.image ? (
-                      <Image source={{ uri: part.image }} style={styles.partImage} />
-                    ) : (
-                      <View style={styles.partImagePlaceholder}>
-                        <Wrench size={28} color={colors.primaryBright} strokeWidth={2} />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.serviceRail}>
+              {visibleParts.map((part) => {
+                const imageUri = getImageUri(part);
+                return (
+                  <View key={part._id} style={styles.partCard}>
+                    <View style={styles.partImageWrap}>
+                      {imageUri ? (
+                        <Image source={{ uri: imageUri }} style={styles.partImage} />
+                      ) : (
+                        <View style={styles.partImagePlaceholder}>
+                          <Wrench size={28} color={colors.primaryBright} strokeWidth={2} />
+                        </View>
+                      )}
+                      <View style={styles.wishlistButtonPart}>
+                        <Heart size={14} color={colors.textMuted} fill="transparent" strokeWidth={2} />
                       </View>
-                    )}
-                    <View style={styles.wishlistButtonPart}>
-                      <Heart size={14} color={colors.textMuted} fill="transparent" strokeWidth={2} />
+                      {part.status === 'Low Stock' ? (
+                        <View style={styles.lowStockBadge}>
+                          <Text style={styles.lowStockBadgeText}>Low Stock</Text>
+                        </View>
+                      ) : null}
                     </View>
-                    {part.isFeatured ? (
-                      <View style={styles.featuredBadge}>
-                        <Text style={styles.featuredBadgeText}>Featured</Text>
-                      </View>
-                    ) : null}
-                    {part.status === 'Low Stock' ? (
-                      <View style={styles.lowStockBadge}>
-                        <Text style={styles.lowStockBadgeText}>Low Stock</Text>
-                      </View>
-                    ) : null}
+                    <View style={styles.partBody}>
+                      <Text style={styles.partBrand} numberOfLines={1}>
+                        {part.brand}
+                      </Text>
+                      <Text style={styles.partTitle} numberOfLines={2}>
+                        {part.itemName}
+                      </Text>
+                      <Text style={styles.partPrice}>{formatCurrency(part.sellingPrice)}</Text>
+                      {part.originalPrice && part.originalPrice > part.sellingPrice ? (
+                        <Text style={styles.partOldPrice}>{formatCurrency(part.originalPrice)}</Text>
+                      ) : null}
+                      <Text style={[styles.partStock, part.status === 'Low Stock' && styles.partStockLow]}>
+                        {part.status === 'Low Stock' ? `Only ${part.quantity} left` : `${part.quantity} in stock`}
+                      </Text>
+                    </View>
                   </View>
-
-                  <View style={styles.partBody}>
-                    <Text style={styles.partBrand} numberOfLines={1}>
-                      {part.brand}
-                    </Text>
-                    <Text style={styles.partTitle} numberOfLines={2}>
-                      {part.itemName}
-                    </Text>
-                    <Text style={styles.partPrice}>{formatCurrency(part.sellingPrice)}</Text>
-                    {part.originalPrice && part.originalPrice > part.sellingPrice ? (
-                      <Text style={styles.partOldPrice}>{formatCurrency(part.originalPrice)}</Text>
-                    ) : null}
-                    <Text style={[styles.partStock, part.status === 'Low Stock' && styles.partStockLow]}>
-                      {part.status === 'Low Stock' ? `Only ${part.quantity} left` : `${part.quantity} in stock`}
-                    </Text>
-                  </View>
-                </View>
-              ))}
+                );
+              })}
             </ScrollView>
           ) : (
             <View style={styles.emptyCard}>
@@ -680,18 +784,17 @@ const HomeDashboard = ({
             <View style={styles.emergencyTopRow}>
               <View style={styles.emergencyCopy}>
                 <View style={styles.emergencyBadge}>
-                  <Text style={styles.emergencyBadgeText}>24x7 Available</Text>
+                  <Text style={styles.emergencyBadgeText}>24×7 Available</Text>
                 </View>
-                <Text style={styles.emergencyTitle}>Emergency Assistance</Text>
-                <Text style={styles.emergencySubtitle}>Roadside help whenever you need it.</Text>
+                <Text style={styles.emergencyTitle}>Roadside Assistance</Text>
+                <Text style={styles.emergencySubtitle}>Rapid support for breakdowns, towing and urgent repair.</Text>
               </View>
               <View style={styles.emergencyIconWrap}>
                 <PhoneCall size={28} color="#FFFFFF" strokeWidth={2.2} />
               </View>
             </View>
-
             <View style={styles.emergencyActions}>
-              <PremiumButton label="Call" compact onPress={openEmergency} style={styles.emergencyPrimaryButton} />
+              <PremiumButton label="Call Now" compact onPress={openEmergency} style={styles.emergencyPrimaryButton} />
               <PremiumButton label="WhatsApp" compact variant="secondary" onPress={openWhatsApp} style={styles.emergencySecondaryButton} />
             </View>
           </View>
@@ -804,65 +907,65 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingTop: 20,
-    paddingHorizontal: 24,
-    paddingBottom: 140,
+    paddingHorizontal: 20,
+    paddingBottom: 120,
   },
-  errorBanner: {
+  notifyBanner: {
     backgroundColor: colors.dangerSoft,
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     padding: spacing.md,
     marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: '#FECACA',
   },
-  errorText: {
+  notifyText: {
     color: colors.danger,
     fontWeight: '700',
     fontSize: 14,
   },
-  header: {
+  heroHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
-  headerIconButton: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerCopy: {
+  heroHeaderLeft: {
     flex: 1,
-    minHeight: 44,
-    justifyContent: 'center',
   },
   greeting: {
     color: colors.textMuted,
     fontSize: 14,
-    lineHeight: 18,
     fontWeight: '700',
     letterSpacing: 0.2,
   },
   brandName: {
     color: colors.text,
-    fontSize: 22,
-    lineHeight: 26,
+    fontSize: 24,
     fontWeight: '800',
-    letterSpacing: -0.4,
-    marginTop: 2,
+    letterSpacing: -0.5,
+    marginTop: 4,
+    lineHeight: 30,
+  },
+  iconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    ...shadow.card,
   },
   badge: {
     position: 'absolute',
-    top: 3,
-    right: 3,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
+    top: 4,
+    right: 4,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
     backgroundColor: colors.danger,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: 5,
   },
   badgeText: {
     color: '#FFFFFF',
@@ -870,8 +973,8 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   searchSection: {
-    gap: 12,
-    marginBottom: 16,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   searchBar: {
     flexDirection: 'row',
@@ -887,28 +990,28 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    marginLeft: 10,
+    marginLeft: 12,
     color: colors.text,
     fontSize: 15,
     fontWeight: '600',
     paddingVertical: 0,
   },
-  searchLoading: {
-    marginRight: 8,
+  searchLoader: {
+    marginRight: 6,
   },
   clearButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 6,
     backgroundColor: colors.surfaceSoft,
   },
   filterButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 46,
+    height: 46,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.primarySoft,
@@ -935,7 +1038,7 @@ const styles = StyleSheet.create({
   },
   clearFiltersButton: {
     paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
+    paddingVertical: 8,
     borderRadius: radius.pill,
     backgroundColor: colors.primarySoft,
   },
@@ -947,8 +1050,8 @@ const styles = StyleSheet.create({
   searchLoadingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingVertical: 4,
+    gap: 10,
+    paddingVertical: 6,
   },
   searchLoadingText: {
     color: colors.textMuted,
@@ -973,8 +1076,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   searchEmptyState: {
-    paddingVertical: 4,
-    gap: 8,
+    paddingVertical: 8,
+    gap: 10,
   },
   searchEmptyTitle: {
     color: colors.text,
@@ -987,10 +1090,16 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     lineHeight: 19,
   },
-  section: {
-    marginBottom: 20,
+  searchEmptyButton: {
+    alignSelf: 'flex-start',
   },
-  horizontalRail: {
+  section: {
+    marginBottom: 22,
+  },
+  sectionHeaderRow: {
+    marginBottom: 12,
+  },
+  categoryRail: {
     gap: 12,
     paddingVertical: 4,
   },
@@ -1000,40 +1109,36 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   quickActionCard: {
-    flexGrow: 1,
-    flexBasis: '48%',
-    minHeight: 132,
+    flex: 1,
+    minWidth: 148,
+    maxWidth: 220,
     backgroundColor: colors.surface,
     borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.borderSoft,
-    paddingVertical: spacing.md,
-    paddingHorizontal: 12,
-    alignItems: 'center',
+    padding: spacing.md,
     justifyContent: 'center',
-    gap: 8,
+    gap: 10,
     ...shadow.card,
   },
   quickActionTitle: {
     color: colors.text,
     fontSize: 14,
     fontWeight: '800',
-    textAlign: 'center',
   },
   quickActionSubtitle: {
     color: colors.textMuted,
     fontSize: 12,
     fontWeight: '600',
-    textAlign: 'center',
   },
   categoryCard: {
-    width: 108,
+    width: 112,
     backgroundColor: colors.surface,
     borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.borderSoft,
-    paddingVertical: 12,
-    paddingHorizontal: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
     alignItems: 'center',
     gap: 8,
     ...shadow.card,
@@ -1045,37 +1150,144 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 16,
   },
-  emptyCard: {    backgroundColor: colors.surface,
+  vehicleCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
     borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.borderSoft,
-    padding: spacing.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
+    padding: spacing.md,
+    gap: 14,
     ...shadow.card,
   },
-  emptyTitle: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '800',
-    textAlign: 'center',
+  vehicleImageSection: {
+    width: 108,
+    height: 108,
+    borderRadius: 22,
+    overflow: 'hidden',
+    backgroundColor: colors.surfaceSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  emptyText: {
+  vehicleImage: {
+    width: '100%',
+    height: '100%',
+  },
+  vehiclePlaceholderImage: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primarySoft,
+  },
+  vehicleDetails: {
+    flex: 1,
+    minWidth: 0,
+    gap: 8,
+  },
+  vehicleTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  vehicleTitle: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '800',
+    lineHeight: 24,
+  },
+  vehicleBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primarySoft,
+  },
+  vehicleBadgeText: {
+    color: colors.primaryBright,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  vehicleMeta: {
     color: colors.textMuted,
     fontSize: 13,
-    fontWeight: '500',
-    textAlign: 'center',
-    lineHeight: 19,
+    fontWeight: '600',
+  },
+  vehicleStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  vehicleStatusItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  vehicleStatusText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  vehicleActions: {
+    width: 120,
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    gap: 10,
+  },
+  vehicleActionLink: {
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+  },
+  vehicleActionLinkText: {
+    color: colors.primaryBright,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  vehicleActionButton: {
+    width: '100%',
+  },
+  vehicleSkeletonCard: {
+    width: '100%',
+    minHeight: 132,
+    borderRadius: radius.xl,
+    backgroundColor: colors.surfaceSoft,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    padding: spacing.md,
+    gap: 12,
+    ...shadow.card,
+  },
+  vehicleSkeletonTop: {
+    width: '40%',
+    height: 16,
+    borderRadius: 999,
+    backgroundColor: colors.surface,
+  },
+  vehicleSkeletonRow: {
+    width: '90%',
+    height: 14,
+    borderRadius: 999,
+    backgroundColor: colors.surface,
+  },
+  vehicleSkeletonRowShort: {
+    width: '62%',
+    height: 14,
+    borderRadius: 999,
+    backgroundColor: colors.surface,
+  },
+  serviceRail: {
+    gap: 14,
+    paddingVertical: 4,
   },
   serviceSkeletonCard: {
-    width: 230,
-    height: 286,
+    width: 240,
+    height: 310,
     borderRadius: radius.xl,
     backgroundColor: colors.surfaceSoft,
   },
   serviceCard: {
-    width: 230,
+    width: 240,
     backgroundColor: colors.surface,
     borderRadius: radius.xl,
     borderWidth: 1,
@@ -1085,7 +1297,7 @@ const styles = StyleSheet.create({
   },
   cardImageWrap: {
     width: '100%',
-    height: 150,
+    height: 154,
     position: 'relative',
     backgroundColor: colors.surfaceSoft,
   },
@@ -1102,26 +1314,26 @@ const styles = StyleSheet.create({
   },
   wishlistButton: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    top: 12,
+    right: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: 'rgba(15, 23, 42, 0.42)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   ratingBadge: {
     position: 'absolute',
-    right: 10,
-    bottom: 10,
+    right: 12,
+    bottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
     backgroundColor: 'rgba(255,255,255,0.96)',
     borderRadius: radius.pill,
     paddingHorizontal: 8,
-    paddingVertical: 5,
+    paddingVertical: 6,
   },
   ratingText: {
     color: colors.text,
@@ -1162,13 +1374,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   partSkeletonCard: {
-    width: 200,
-    height: 300,
+    width: 210,
+    height: 310,
     borderRadius: radius.xl,
     backgroundColor: colors.surfaceSoft,
   },
   partCard: {
-    width: 200,
+    width: 210,
     backgroundColor: colors.surface,
     borderRadius: radius.xl,
     borderWidth: 1,
@@ -1178,7 +1390,7 @@ const styles = StyleSheet.create({
   },
   partImageWrap: {
     width: '100%',
-    height: 132,
+    height: 140,
     position: 'relative',
     backgroundColor: colors.surfaceSoft,
   },
@@ -1195,8 +1407,8 @@ const styles = StyleSheet.create({
   },
   wishlistButtonPart: {
     position: 'absolute',
-    top: 10,
-    right: 10,
+    top: 12,
+    right: 12,
     width: 30,
     height: 30,
     borderRadius: 15,
@@ -1206,28 +1418,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderSoft,
   },
-  featuredBadge: {
-    position: 'absolute',
-    top: 10,
-    left: 10,
-    backgroundColor: colors.primaryBright,
-    borderRadius: radius.pill,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  featuredBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '800',
-  },
   lowStockBadge: {
     position: 'absolute',
-    bottom: 10,
-    left: 10,
+    bottom: 12,
+    left: 12,
     backgroundColor: colors.warningSoft,
     borderRadius: radius.pill,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
   lowStockBadgeText: {
     color: colors.warning,
@@ -1256,7 +1454,7 @@ const styles = StyleSheet.create({
     color: colors.primaryBright,
     fontSize: 18,
     fontWeight: '800',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   partOldPrice: {
     color: colors.textLight,
@@ -1273,6 +1471,33 @@ const styles = StyleSheet.create({
   partStockLow: {
     color: colors.warning,
   },
+  emptyCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    padding: spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    ...shadow.card,
+  },
+  emptyTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  emptyText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: '500',
+    textAlign: 'center',
+    lineHeight: 19,
+  },
+  emptyActionButton: {
+    marginTop: 6,
+  },
   emergencyCard: {
     backgroundColor: '#0F3A91',
     borderRadius: radius.xl,
@@ -1283,21 +1508,21 @@ const styles = StyleSheet.create({
   },
   emergencyGlowTop: {
     position: 'absolute',
-    top: -32,
-    right: -32,
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: 'rgba(37,99,235,0.35)',
+    top: -28,
+    right: -28,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(59,130,246,0.35)',
   },
   emergencyGlowBottom: {
     position: 'absolute',
-    bottom: -32,
-    left: -40,
+    bottom: -30,
+    left: -18,
     width: 160,
     height: 160,
     borderRadius: 80,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   emergencyTopRow: {
     flexDirection: 'row',
@@ -1309,7 +1534,7 @@ const styles = StyleSheet.create({
   emergencyCopy: {
     flex: 1,
     minWidth: 0,
-    gap: 6,
+    gap: 8,
   },
   emergencyBadge: {
     alignSelf: 'flex-start',
@@ -1327,14 +1552,14 @@ const styles = StyleSheet.create({
   },
   emergencyTitle: {
     color: '#FFFFFF',
-    fontSize: 18,
-    lineHeight: 24,
+    fontSize: 20,
+    lineHeight: 26,
     fontWeight: '800',
   },
   emergencySubtitle: {
     color: 'rgba(255,255,255,0.82)',
     fontSize: 13,
-    lineHeight: 19,
+    lineHeight: 20,
     fontWeight: '500',
   },
   emergencyIconWrap: {
@@ -1444,7 +1669,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   pressed: {
-    opacity: 0.85,
+    opacity: 0.88,
     transform: [{ scale: 0.98 }],
   },
 });

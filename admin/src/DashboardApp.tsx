@@ -316,7 +316,7 @@ const DashboardApp = () => {
   const renderSectionTitle = (title: string, subtitle: string, action?: ReactNode) => (
     <div className="section-heading">
       <div>
-        <p className="eyebrow">{greeting}, Admin 👋</p>
+        <p className="eyebrow">{greeting}, Admin </p>
         <h1 className="section-title">{title}</h1>
         <p className="section-subtitle">{subtitle}</p>
       </div>
@@ -328,7 +328,7 @@ const DashboardApp = () => {
     <>
       <section className="hero-card">
         <div className="hero-copy">
-          <p className="eyebrow">{greeting}, Admin 👋</p>
+          <p className="eyebrow">{greeting}, Admin </p>
           <h1 className="hero-title">Today&apos;s Overview</h1>
           <p className="hero-subtitle">
             Premium command center for bookings, orders, customers, parts, and service operations.
