@@ -572,12 +572,12 @@ const HomeDashboard = ({
 
               <View style={styles.vehicleBody}>
                 <View style={styles.vehicleTitleRow}>
-                  <Text style={styles.vehicleTitle} numberOfLines={1}>
+                  <Text style={styles.vehicleTitle}>
                     {`${activeVehicle.make} ${activeVehicle.modelName}`}
                   </Text>
                 </View>
 
-                <View style={styles.vehicleMetaPills}>
+                <View style={styles.vehicleMetaRow}>
                   <View style={styles.vehicleMetaPill}>
                     <Text style={styles.vehicleMetaPillText}>{activeVehicle.plateNumber}</Text>
                   </View>
@@ -594,7 +594,7 @@ const HomeDashboard = ({
                     Last Service: {activeVehicle.lastServiceDate ? new Date(activeVehicle.lastServiceDate).toLocaleDateString() : 'Not recorded'}
                   </Text>
                 </View>
-                <View style={styles.vehicleInfoRow}>
+                <View style={styles.vehicleInfoRow}> 
                   <Clock3 size={14} color={colors.textMuted} strokeWidth={2} />
                   <Text style={styles.vehicleInfoText}>
                     Next Service: {nextServiceDate ? nextServiceDate.toLocaleDateString() : 'Schedule soon'}
@@ -603,7 +603,15 @@ const HomeDashboard = ({
               </View>
 
               <View style={styles.vehicleActions}>
-                <PremiumButton label="Book Again" compact onPress={() => onNavigateTab?.('services')} />
+                <View style={styles.vehicleActionTop}>
+                  <Pressable
+                    style={({ pressed }) => [styles.vehicleDetailsButton, pressed && styles.pressed]}
+                    onPress={() => onNavigateTab?.('profile')}
+                  >
+                    <Text style={styles.vehicleDetailsLabel}>View Details</Text>
+                  </Pressable>
+                </View>
+                <PremiumButton label="Book Again" compact onPress={() => onNavigateTab?.('services')} style={styles.vehicleBookAgainButton} />
               </View>
             </View>
           ) : (
@@ -1156,23 +1164,24 @@ const styles = StyleSheet.create({
   vehicleCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
+    gap: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 16,
+    minHeight: 130,
     borderWidth: 1,
     borderColor: colors.borderSoft,
-    padding: spacing.md,
     ...shadow.card,
   },
   vehicleGraphic: {
-    width: 112,
+    width: 110,
     alignItems: 'center',
     justifyContent: 'center',
   },
   vehicleGraphicCircle: {
-    width: 112,
-    height: 112,
-    borderRadius: radius.xl,
+    width: 110,
+    height: 110,
+    borderRadius: 24,
     backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1180,20 +1189,21 @@ const styles = StyleSheet.create({
   primaryBadge: {
     position: 'absolute',
     top: -4,
-    left: 10,
+    left: 0,
     backgroundColor: colors.primaryBright,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: radius.pill,
   },
   primaryBadgeText: {
     color: '#FFFFFF',
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '800',
   },
   vehicleBody: {
     flex: 1,
     minWidth: 0,
+    justifyContent: 'center',
   },
   vehicleTitleRow: {
     marginBottom: 8,
@@ -1204,9 +1214,9 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     lineHeight: 22,
   },
-  vehicleMetaPills: {
+  vehicleMetaRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
     gap: 8,
     marginBottom: 10,
   },
@@ -1245,7 +1255,26 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   vehicleActions: {
-    alignSelf: 'center',
+    width: 140,
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    minHeight: 110,
+  },
+  vehicleActionTop: {
+    alignSelf: 'stretch',
+    alignItems: 'flex-end',
+  },
+  vehicleDetailsButton: {
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+  },
+  vehicleDetailsLabel: {
+    color: colors.primaryBright,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  vehicleBookAgainButton: {
+    width: 140,
   },
   emptyCard: {
     backgroundColor: colors.surface,
