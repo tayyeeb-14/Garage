@@ -51,6 +51,14 @@ const buildListFilter = (query: Record<string, unknown>): FilterQuery<IInventory
     filter.isFeatured = false;
   }
 
+  if (query.trending === 'true') {
+    filter.isTrending = true;
+  }
+
+  if (query.offer === 'true') {
+    filter.discountPercent = { $gt: 0 } as FilterQuery<IInventory>['discountPercent'];
+  }
+
   if (query.active === 'true') {
     filter.isActive = true;
   }

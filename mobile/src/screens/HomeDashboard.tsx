@@ -161,7 +161,16 @@ const HomeDashboard = ({
     try {
       if (!isRefresh) setLoading(true);
 
-      const [userProfile, serviceList, topServiceList, productList, vehicleList, orderList, dashboardStats, activeBanners] = await Promise.all([
+      const [
+        userProfile,
+        serviceList,
+        topServiceList,
+        productList,
+        vehicleList,
+        orderList,
+        dashboardStats,
+        activeBanners,
+      ] = await Promise.all([
         fetchUserProfile(),
         fetchPublicServices(),
         fetchTopServices(),
@@ -254,6 +263,46 @@ const HomeDashboard = ({
 
   const getImageUri = (item: { imageUrl?: string; thumbnailImage?: string; image?: string } | null | undefined) =>
     item?.imageUrl ?? item?.thumbnailImage ?? item?.image ?? '';
+
+  const renderPartCard = (part: PublicPart) => {
+    const imageUri = getImageUri(part);
+    return (
+      <View key={part._id} style={styles.partCard}>
+        <View style={styles.partImageWrap}>
+          {imageUri ? (
+            <Image source={{ uri: imageUri }} style={styles.partImage} />
+          ) : (
+            <View style={styles.partImagePlaceholder}>
+              <Wrench size={28} color={colors.primaryBright} strokeWidth={2} />
+            </View>
+          )}
+          <View style={styles.wishlistButtonPart}>
+            <Heart size={14} color={colors.textMuted} fill="transparent" strokeWidth={2} />
+          </View>
+          {part.status === 'Low Stock' ? (
+            <View style={styles.lowStockBadge}>
+              <Text style={styles.lowStockBadgeText}>Low Stock</Text>
+            </View>
+          ) : null}
+        </View>
+        <View style={styles.partBody}>
+          <Text style={styles.partBrand} numberOfLines={1}>
+            {part.brand || part.category}
+          </Text>
+          <Text style={styles.partTitle} numberOfLines={2}>
+            {part.itemName}
+          </Text>
+          <Text style={styles.partPrice}>{formatCurrency(part.sellingPrice)}</Text>
+          {part.originalPrice && part.originalPrice > part.sellingPrice ? (
+            <Text style={styles.partOldPrice}>{formatCurrency(part.originalPrice)}</Text>
+          ) : null}
+          <Text style={[styles.partStock, part.status === 'Low Stock' && styles.partStockLow]}>
+            {part.status === 'Low Stock' ? `Only ${part.quantity} left` : `${part.quantity} in stock`}
+          </Text>
+        </View>
+      </View>
+    );
+  };
 
   const searchQuery = normalizeText(debouncedSearchText);
   const hasSearchQuery = searchQuery.length > 0;
@@ -729,45 +778,7 @@ const HomeDashboard = ({
             </ScrollView>
           ) : visibleParts.length > 0 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.serviceRail}>
-              {visibleParts.map((part) => {
-                const imageUri = getImageUri(part);
-                return (
-                  <View key={part._id} style={styles.partCard}>
-                    <View style={styles.partImageWrap}>
-                      {imageUri ? (
-                        <Image source={{ uri: imageUri }} style={styles.partImage} />
-                      ) : (
-                        <View style={styles.partImagePlaceholder}>
-                          <Wrench size={28} color={colors.primaryBright} strokeWidth={2} />
-                        </View>
-                      )}
-                      <View style={styles.wishlistButtonPart}>
-                        <Heart size={14} color={colors.textMuted} fill="transparent" strokeWidth={2} />
-                      </View>
-                      {part.status === 'Low Stock' ? (
-                        <View style={styles.lowStockBadge}>
-                          <Text style={styles.lowStockBadgeText}>Low Stock</Text>
-                        </View>
-                      ) : null}
-                    </View>
-                    <View style={styles.partBody}>
-                      <Text style={styles.partBrand} numberOfLines={1}>
-                        {part.brand}
-                      </Text>
-                      <Text style={styles.partTitle} numberOfLines={2}>
-                        {part.itemName}
-                      </Text>
-                      <Text style={styles.partPrice}>{formatCurrency(part.sellingPrice)}</Text>
-                      {part.originalPrice && part.originalPrice > part.sellingPrice ? (
-                        <Text style={styles.partOldPrice}>{formatCurrency(part.originalPrice)}</Text>
-                      ) : null}
-                      <Text style={[styles.partStock, part.status === 'Low Stock' && styles.partStockLow]}>
-                        {part.status === 'Low Stock' ? `Only ${part.quantity} left` : `${part.quantity} in stock`}
-                      </Text>
-                    </View>
-                  </View>
-                );
-              })}
+              {visibleParts.map((part) => renderPartCard(part))}
             </ScrollView>
           ) : (
             <View style={styles.emptyCard}>

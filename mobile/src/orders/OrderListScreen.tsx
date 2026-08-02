@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { formatCurrency } from '../utils/currency';
 import { ActivityIndicator, Alert, FlatList, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { API_URL } from '../config/api';
+import { fetchWithAuth } from '../services/authService';
 
 interface OrderItem {
   _id: string;
@@ -17,13 +18,21 @@ interface OrderItem {
   booking?: { bookingId?: string; bookingDate?: string; preferredTime?: string; address?: string };
 }
 
-const OrderListScreen = () => {
+interface OrderListScreenProps {
+  onSelectOrder: (orderId: string) => void;
+  onBack: () => void;
+}
+
+const OrderListScreen = ({ onSelectOrder, onBack }: OrderListScreenProps) => {
   const [orders, setOrders] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadOrders = async () => {
     try {
-      const response = await fetch(`${API_URL}/orders/customer/000000000000000000000000`);
+      const response = await fetchWithAuth(`${API_URL}/orders/customer/me`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(payload.message || 'Unable to load orders');
@@ -65,7 +74,12 @@ const OrderListScreen = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>My Orders</Text>
+      <View style={styles.headerRow}>
+        <Text style={styles.title}>My Orders</Text>
+        <Pressable style={styles.backButton} onPress={onBack}>
+          <Text style={styles.backText}>Back</Text>
+        </Pressable>
+      </View>
       {orders.length === 0 ? (
         <Text style={styles.empty}>No orders yet.</Text>
       ) : (
@@ -106,6 +120,9 @@ const styles = StyleSheet.create({
   meta: { color: '#64748b', marginTop: 2 },
   button: { marginTop: 10, backgroundColor: '#2563eb', paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
   buttonText: { color: '#fff', fontWeight: '700' },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  backButton: { paddingHorizontal: 12, paddingVertical: 8 },
+  backText: { color: '#2563eb', fontWeight: '700' },
 });
 
 export default OrderListScreen;

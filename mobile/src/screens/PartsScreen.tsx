@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
+  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
@@ -39,12 +40,6 @@ const PartCard = React.memo(({ part }: { part: PublicPart }) => (
       <View style={styles.rowBetween}>
         <Text style={styles.partName}>{part.itemName}</Text>
         <View style={styles.badgeRow}>
-          {part.isFeatured ? (
-            <View style={styles.featuredChip}>
-              <Sparkles size={12} color="#2563eb" />
-              <Text style={styles.featuredText}>Featured</Text>
-            </View>
-          ) : null}
           {part.status === 'Low Stock' ? (
             <View style={styles.lowStockChip}>
               <Text style={styles.lowStockText}>Low Stock</Text>
@@ -69,7 +64,12 @@ const PartCard = React.memo(({ part }: { part: PublicPart }) => (
   </View>
 ));
 
-const PartsScreen = () => {
+interface PartsScreenProps {
+  onAddToCart?: (part: PublicPart) => void;
+  onOpenCart?: () => void;
+}
+
+const PartsScreen = ({ onAddToCart, onOpenCart }: PartsScreenProps) => {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const { parts, loading, error, refresh } = usePublicParts(
@@ -96,8 +96,13 @@ const PartsScreen = () => {
           <Text style={styles.title}>Genuine spares for every service</Text>
           <Text style={styles.subtitle}>Premium quality components delivered fast for your bike or car.</Text>
         </View>
-        <View style={styles.iconWrap}>
-          <Package size={24} color="#2563eb" />
+        <View style={styles.headerActions}>
+          <Pressable style={styles.cartButton} onPress={onOpenCart}>
+            <Text style={styles.cartButtonText}>View Cart</Text>
+          </Pressable>
+          <View style={styles.iconWrap}>
+            <Package size={24} color="#2563eb" />
+          </View>
         </View>
       </View>
 
@@ -136,7 +141,20 @@ const PartsScreen = () => {
       <FlatList
         data={loading ? [] : parts}
         keyExtractor={(item) => item._id}
-        renderItem={({ item }) => <PartCard part={item} />}
+        renderItem={({ item }) => (
+          <View>
+            <PartCard part={item} />
+            <Pressable
+              style={[styles.addToCartButton, item.status === 'Out Of Stock' ? styles.addToCartButtonDisabled : null]}
+              onPress={() => onAddToCart?.(item)}
+              disabled={item.status === 'Out Of Stock'}
+            >
+              <Text style={[styles.addToCartText, item.status === 'Out Of Stock' ? styles.addToCartTextDisabled : null]}>
+                {item.status === 'Out Of Stock' ? 'Out of Stock' : 'Add to Cart'}
+              </Text>
+            </Pressable>
+          </View>
+        )}
         ListHeaderComponent={listHeader}
         ListEmptyComponent={listEmpty}
         ListFooterComponent={(
@@ -175,12 +193,17 @@ const styles = StyleSheet.create({
   price: { color: '#2563eb', fontWeight: '900', fontSize: 16 },
   oldPrice: { color: '#94a3b8', textDecorationLine: 'line-through', fontSize: 13, marginTop: 2 },
   stock: { fontWeight: '700' },
-  featuredChip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#eff6ff', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
-  featuredText: { color: '#2563eb', fontWeight: '800', fontSize: 11 },
   lowStockChip: { backgroundColor: '#fef3c7', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
   lowStockText: { color: '#92400e', fontWeight: '800', fontSize: 11 },
   offerCard: { marginTop: 8, borderRadius: 20, backgroundColor: '#eff6ff', padding: 16, flexDirection: 'row', alignItems: 'center', gap: 10 },
   offerText: { color: '#1d4ed8', flex: 1, fontWeight: '700' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  cartButton: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 14, backgroundColor: '#e0f2fe' },
+  cartButtonText: { color: '#2563eb', fontWeight: '700' },
+  addToCartButton: { marginHorizontal: 16, marginBottom: 16, paddingVertical: 14, borderRadius: 18, alignItems: 'center', backgroundColor: '#2563eb' },
+  addToCartButtonDisabled: { backgroundColor: '#cbd5e1' },
+  addToCartText: { color: '#ffffff', fontWeight: '800' },
+  addToCartTextDisabled: { color: '#64748b' },
   emptyCard: { backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: '#e2e8f0', padding: 20, alignItems: 'center' },
   emptyTitle: { fontSize: 16, fontWeight: '800', color: '#0f172a', marginBottom: 6 },
   emptyText: { color: '#64748b', textAlign: 'center' },

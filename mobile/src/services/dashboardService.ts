@@ -69,8 +69,19 @@ export interface PublicPart {
   shortDescription?: string;
   fullDescription?: string;
   description?: string;
+  warranty?: string;
+  specifications?: string;
+  fuelType?: string;
+  transmission?: string;
+  kmDriven?: number;
+  ownerCount?: number;
+  location?: string;
+  sellerContact?: string;
+  verifiedSeller?: boolean;
+  offerDetails?: string;
   status: 'In Stock' | 'Low Stock' | 'Out Of Stock';
   isFeatured: boolean;
+  isTrending?: boolean;
 }
 
 export interface DashboardOrder {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Alert, Platform, ScrollView, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { BookOpen, ChevronRight, Headphones, MapPin, ShieldCheck, Sparkles, UserRound, Wallet } from 'lucide-react-native';
+import { BookOpen, ChevronRight, Headphones, MapPin, Package, ShieldCheck, Sparkles, UserRound, Wallet } from 'lucide-react-native';
 import BookingHistoryScreen from '../booking/BookingHistoryScreen';
 import { Profile } from '../services/dashboardService';
 import { clearAuthState } from '../services/authService';
@@ -13,12 +13,17 @@ const confirmAction = (message: string) => {
 interface ProfileScreenProps {
   profile?: Profile | null;
   showMyBookings?: boolean;
+  showMyOrders?: boolean;
   onShowMyBookings?: (show: boolean) => void;
+  onShowMyOrders?: (show: boolean) => void;
+  onOpenMyOrders?: () => void;
+  onOpenCart?: () => void;
+  cartItemCount?: number;
   onBookService?: () => void;
   onLogout?: () => Promise<void> | void;
 }
 
-const ProfileScreen = ({ profile, showMyBookings, onShowMyBookings, onBookService, onLogout }: ProfileScreenProps) => {
+const ProfileScreen = ({ profile, showMyBookings, onShowMyBookings, onShowMyOrders, onOpenMyOrders, onOpenCart, onBookService, onLogout }: ProfileScreenProps) => {
   const firstName = profile?.fullName?.split(' ')[0] ?? 'Customer';
 
   const performLogout = async () => {
@@ -51,7 +56,9 @@ const ProfileScreen = ({ profile, showMyBookings, onShowMyBookings, onBookServic
 
   const menuItems = [
     { title: 'My Profile', icon: <UserRound size={18} color="#2563eb" /> },
+    { title: 'My Orders', icon: <Package size={18} color="#2563eb" />, action: () => onOpenMyOrders?.() },
     { title: 'My Bookings', icon: <BookOpen size={18} color="#2563eb" />, action: () => onShowMyBookings?.(true) },
+    { title: 'Cart', icon: <Wallet size={18} color="#2563eb" />, action: () => onOpenCart?.() },
     { title: 'Saved Addresses', icon: <MapPin size={18} color="#2563eb" /> },
     { title: 'Favourite Services', icon: <Sparkles size={18} color="#2563eb" /> },
     { title: 'Support', icon: <Headphones size={18} color="#2563eb" /> },

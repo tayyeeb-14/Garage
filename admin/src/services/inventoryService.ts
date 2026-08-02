@@ -16,6 +16,18 @@ export interface InventoryItem {
   sellingPrice: number;
   originalPrice?: number;
   discountPercent?: number;
+  rating?: number;
+  warranty?: string;
+  specifications?: string;
+  fuelType?: string;
+  transmission?: string;
+  kmDriven?: number;
+  ownerCount?: number;
+  location?: string;
+  sellerContact?: string;
+  verifiedSeller?: boolean;
+  isTrending?: boolean;
+  offerDetails?: string;
   quantity: number;
   minimumStock: number;
   maximumStock: number;

@@ -14,6 +14,18 @@ export interface IInventory extends Document {
   sellingPrice: number;
   originalPrice?: number;
   discountPercent?: number;
+  rating?: number;
+  warranty?: string;
+  specifications?: string;
+  fuelType?: string;
+  transmission?: string;
+  kmDriven?: number;
+  ownerCount?: number;
+  location?: string;
+  sellerContact?: string;
+  verifiedSeller?: boolean;
+  isTrending?: boolean;
+  offerDetails?: string;
   quantity: number;
   minimumStock: number;
   maximumStock: number;
@@ -104,6 +116,63 @@ const inventorySchema = new Schema<IInventory>(
       min: [0, 'Discount cannot be negative'],
       max: [100, 'Discount cannot exceed 100'],
       default: 0,
+    },
+    rating: {
+      type: Number,
+      min: [0, 'Rating cannot be negative'],
+      max: [5, 'Rating cannot exceed 5'],
+      default: 0,
+    },
+    warranty: {
+      type: String,
+      trim: true,
+      maxlength: [120, 'Warranty cannot exceed 120 characters'],
+    },
+    specifications: {
+      type: String,
+      trim: true,
+      maxlength: [1000, 'Specifications cannot exceed 1000 characters'],
+    },
+    fuelType: {
+      type: String,
+      trim: true,
+      maxlength: [40, 'Fuel type cannot exceed 40 characters'],
+    },
+    transmission: {
+      type: String,
+      trim: true,
+      maxlength: [40, 'Transmission cannot exceed 40 characters'],
+    },
+    kmDriven: {
+      type: Number,
+      min: [0, 'KM driven cannot be negative'],
+    },
+    ownerCount: {
+      type: Number,
+      min: [0, 'Owner count cannot be negative'],
+    },
+    location: {
+      type: String,
+      trim: true,
+      maxlength: [120, 'Location cannot exceed 120 characters'],
+    },
+    sellerContact: {
+      type: String,
+      trim: true,
+      maxlength: [120, 'Seller contact cannot exceed 120 characters'],
+    },
+    verifiedSeller: {
+      type: Boolean,
+      default: false,
+    },
+    isTrending: {
+      type: Boolean,
+      default: false,
+    },
+    offerDetails: {
+      type: String,
+      trim: true,
+      maxlength: [200, 'Offer details cannot exceed 200 characters'],
     },
     quantity: {
       type: Number,

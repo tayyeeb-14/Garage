@@ -12,6 +12,7 @@ export class OrderRepository {
       .populate('customer', 'fullName email phone address')
       .populate('vehicle', 'plateNumber make modelName year color')
       .populate('services', 'name price description')
+      .populate('parts.item', 'itemName sku brand image')
       .lean();
   }
 
@@ -54,6 +55,7 @@ export class OrderRepository {
         .populate('customer', 'fullName email phone address')
         .populate('vehicle', 'plateNumber make modelName year color')
         .populate('services', 'name price description')
+        .populate('parts.item', 'itemName sku brand image')
         .sort(sort)
         .skip((page - 1) * limit)
         .limit(limit)
@@ -80,8 +82,10 @@ export class OrderRepository {
   async findByCustomer(customerId: string) {
     return Order.find({ customer: new Types.ObjectId(customerId), deletedAt: { $exists: false } })
       .populate('booking', 'bookingId bookingDate preferredTime address status')
+      .populate('customer', 'fullName email phone address')
       .populate('vehicle', 'plateNumber make modelName year color')
       .populate('services', 'name price description')
+      .populate('parts.item', 'itemName sku brand image')
       .sort({ createdAt: -1 })
       .lean();
   }

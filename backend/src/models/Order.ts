@@ -1,11 +1,21 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
+export interface IOrderPart {
+  item: mongoose.Types.ObjectId;
+  quantity: number;
+  price: number;
+  name?: string;
+  sku?: string;
+}
+
 export interface IOrder extends Document {
   orderId: string;
   booking?: mongoose.Types.ObjectId;
   customer: mongoose.Types.ObjectId;
   vehicle?: mongoose.Types.ObjectId;
-  services: mongoose.Types.ObjectId[];
+  services?: mongoose.Types.ObjectId[];
+  parts?: IOrderPart[];
+  shippingAddress?: string;
   totalAmount: number;
   paymentMethod: 'cash' | 'upi' | 'card';
   paymentStatus: 'pending' | 'paid';
@@ -43,8 +53,39 @@ const orderSchema = new Schema<IOrder>(
     services: [{
       type: Schema.Types.ObjectId,
       ref: 'Service',
-      required: [true, 'At least one service is required'],
     }],
+    parts: [
+      {
+        item: {
+          type: Schema.Types.ObjectId,
+          ref: 'Inventory',
+          required: [true, 'Part item is required'],
+        },
+        quantity: {
+          type: Number,
+          required: [true, 'Part quantity is required'],
+          min: [1, 'Quantity must be at least 1'],
+        },
+        price: {
+          type: Number,
+          required: [true, 'Part price is required'],
+          min: [0, 'Price cannot be negative'],
+        },
+        name: {
+          type: String,
+          trim: true,
+        },
+        sku: {
+          type: String,
+          trim: true,
+        },
+      },
+    ],
+    shippingAddress: {
+      type: String,
+      trim: true,
+      maxlength: [250, 'Shipping address cannot exceed 250 characters'],
+    },
     totalAmount: {
       type: Number,
       required: [true, 'Total amount is required'],

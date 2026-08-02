@@ -16,7 +16,7 @@ export class DashboardRepository {
     ]);
 
     const revenueResult = await Order.aggregate([
-      { $group: { _id: null, revenue: { $sum: '$total' } } },
+      { $group: { _id: null, revenue: { $sum: '$totalAmount' } } },
     ]);
 
     const revenue = revenueResult[0]?.revenue ?? 0;

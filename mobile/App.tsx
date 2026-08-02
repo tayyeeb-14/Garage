@@ -8,9 +8,14 @@ import NotificationsScreen from './src/screens/NotificationsScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import ServicesScreen from './src/services/ServiceScreen';
 import PartsScreen from './src/screens/PartsScreen';
+import CartScreen, { CartItem } from './src/screens/CartScreen';
+import CheckoutScreen from './src/screens/CheckoutScreen';
+import OrderListScreen from './src/orders/OrderListScreen';
+import OrderDetailsScreen from './src/orders/OrderDetailsScreen';
 import BottomTabBar, { TabKey } from './src/components/BottomTabBar';
 import { initialNotifications, NotificationItem } from './src/data/notifications';
 import { clearAuthState, getAuthTokens, getStoredAuthUser, verifyAuthToken } from './src/services/authService';
+import { PublicPart } from './src/services/dashboardService';
 
 const OfflineScreen = ({ onRetry }: { onRetry: () => void }) => (
   <View style={styles.offlineContainer}>
@@ -32,6 +37,12 @@ export default function App() {
   const [notifications, setNotifications] = useState<NotificationItem[]>(initialNotifications);
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [showMyBookings, setShowMyBookings] = useState(false);
+  const [showMyOrders, setShowMyOrders] = useState(false);
+  const [showCart, setShowCart] = useState(false);
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [showOrderDetails, setShowOrderDetails] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [servicesIntent, setServicesIntent] = useState<{ serviceId?: string } | null>(null);
   const [authScreenKey, setAuthScreenKey] = useState(0);
 
@@ -39,15 +50,90 @@ export default function App() {
     setActiveTab(tab);
     if (tab !== 'profile') {
       setShowMyBookings(false);
+      setShowMyOrders(false);
     }
     if (tab !== 'services') {
       setServicesIntent(null);
     }
+    setShowCart(false);
+    setShowCheckout(false);
+    setShowOrderDetails(false);
   };
 
   const handleOpenMyBookings = () => {
     setActiveTab('profile');
     setShowMyBookings(true);
+    setShowMyOrders(false);
+  };
+
+  const handleOpenMyOrders = () => {
+    setActiveTab('profile');
+    setShowMyOrders(true);
+    setShowMyBookings(false);
+    setShowCart(false);
+    setShowCheckout(false);
+    setShowOrderDetails(false);
+  };
+
+  const handleAddToCart = (part: PublicPart) => {
+    setCartItems((current) => {
+      const existing = current.find((item) => item.part._id === part._id);
+      if (existing) {
+        return current.map((item) =>
+          item.part._id === part._id ? { ...item, quantity: Math.min(part.quantity, item.quantity + 1) } : item,
+        );
+      }
+      return [...current, { part, quantity: 1 }];
+    });
+  };
+
+  const handleRemoveCartItem = (itemId: string) => {
+    setCartItems((current) => current.filter((item) => item.part._id !== itemId));
+  };
+
+  const handleUpdateCartItemQuantity = (itemId: string, quantity: number) => {
+    setCartItems((current) =>
+      current.map((item) => (item.part._id === itemId ? { ...item, quantity } : item)),
+    );
+  };
+
+  const handleOpenCart = () => {
+    setActiveTab('parts');
+    setShowCart(true);
+    setShowCheckout(false);
+    setShowMyBookings(false);
+    setShowMyOrders(false);
+    setShowOrderDetails(false);
+  };
+
+  const handleBackFromCart = () => {
+    setShowCart(false);
+  };
+
+  const handleProceedToCheckout = () => {
+    setShowCheckout(true);
+    setShowCart(false);
+  };
+
+  const handleOrderPlaced = () => {
+    setCartItems([]);
+    setShowCheckout(false);
+    setShowCart(false);
+    setShowMyOrders(true);
+    setSelectedOrderId(null);
+    setShowOrderDetails(false);
+    setActiveTab('profile');
+  };
+
+  const handleSelectOrder = (orderId: string) => {
+    setSelectedOrderId(orderId);
+    setShowOrderDetails(true);
+    setShowMyOrders(false);
+  };
+
+  const handleCloseOrderDetails = () => {
+    setSelectedOrderId(null);
+    setShowOrderDetails(false);
   };
 
   const verifyAuth = async () => {
@@ -88,6 +174,11 @@ export default function App() {
     setNotifications(initialNotifications);
     setActiveTab('home');
     setShowMyBookings(false);
+    setShowMyOrders(false);
+    setShowCart(false);
+    setShowCheckout(false);
+    setSelectedOrderId(null);
+    setCartItems([]);
     setAuthStatus('unauthenticated');
     setIsAuthenticated(false);
     setAuthScreenKey((value) => value + 1);
@@ -116,7 +207,25 @@ export default function App() {
     <View style={styles.appContainer}>
       <View style={styles.contentContainer}>
         {isAuthenticated ? (
-          activeTab === 'home' ? (
+          showCheckout ? (
+            <CheckoutScreen
+              cartItems={cartItems}
+              onOrderPlaced={handleOrderPlaced}
+              onBack={() => setShowCheckout(false)}
+            />
+          ) : showCart ? (
+            <CartScreen
+              cartItems={cartItems}
+              onRemoveItem={handleRemoveCartItem}
+              onUpdateQuantity={handleUpdateCartItemQuantity}
+              onCheckout={handleProceedToCheckout}
+              onBack={handleBackFromCart}
+            />
+          ) : showOrderDetails && selectedOrderId ? (
+            <OrderDetailsScreen orderId={selectedOrderId} onClose={handleCloseOrderDetails} />
+          ) : showMyOrders ? (
+            <OrderListScreen onSelectOrder={handleSelectOrder} onBack={() => setShowMyOrders(false)} />
+          ) : activeTab === 'home' ? (
             <HomeDashboard
               onNavigateTab={handleChangeTab}
               onOpenMyBookings={handleOpenMyBookings}
@@ -134,7 +243,7 @@ export default function App() {
               onNavigateHome={() => handleChangeTab('home')}
             />
           ) : activeTab === 'parts' ? (
-            <PartsScreen />
+            <PartsScreen onAddToCart={handleAddToCart} onOpenCart={handleOpenCart} />
           ) : activeTab === 'notifications' ? (
             <NotificationsScreen
               notifications={notifications}
@@ -145,13 +254,19 @@ export default function App() {
           ) : (
             <ProfileScreen
               showMyBookings={showMyBookings}
+              showMyOrders={showMyOrders}
               onShowMyBookings={setShowMyBookings}
+              onShowMyOrders={setShowMyOrders}
+              onOpenMyOrders={handleOpenMyOrders}
+              onOpenCart={handleOpenCart}
               onBookService={() => {
                 setShowMyBookings(false);
+                setShowMyOrders(false);
                 setServicesIntent(null);
                 setActiveTab('services');
               }}
               onLogout={handleLogout}
+              cartItemCount={cartItems.reduce((sum, item) => sum + item.quantity, 0)}
             />
           )
         ) : (
