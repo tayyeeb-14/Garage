@@ -560,58 +560,56 @@ const HomeDashboard = ({
               </View>
             </View>
           ) : activeVehicle ? (
-            <View style={styles.vehicleCard}>
-              <View style={styles.vehicleGraphic}>
-                <View style={styles.vehicleGraphicCircle}>
-                  <Car size={44} color={colors.primaryBright} strokeWidth={2} />
-                </View>
-                <View style={styles.primaryBadge}>
-                  <Text style={styles.primaryBadgeText}>Primary</Text>
-                </View>
+            <View style={styles.vehicleCardV3}>
+              <View style={styles.vehicleImageSectionV3}>
+                {((activeVehicle as any).image || (activeVehicle as any).thumbnailImage) ? (
+                  <Image
+                    source={{ uri: (activeVehicle as any).image || (activeVehicle as any).thumbnailImage }}
+                    style={styles.vehicleImageV3}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={styles.vehicleImageV3}>
+                    <Car size={42} color={colors.primaryBright} strokeWidth={2} />
+                  </View>
+                )}
               </View>
 
-              <View style={styles.vehicleBody}>
-                <View style={styles.vehicleTitleRow}>
-                  <Text style={styles.vehicleTitle}>
-                    {`${activeVehicle.make} ${activeVehicle.modelName}`}
-                  </Text>
+              <View style={styles.vehicleContentV3}>
+                <Text style={styles.vehicleNameV3}>{`${activeVehicle.make} ${activeVehicle.modelName}`}</Text>
+                <View style={styles.vehiclePrimaryBadgeV3}>
+                  <Text style={styles.vehiclePrimaryBadgeTextV3}>Primary</Text>
                 </View>
-
-                <View style={styles.vehicleMetaRow}>
-                  <View style={styles.vehicleMetaPill}>
-                    <Text style={styles.vehicleMetaPillText}>{activeVehicle.plateNumber}</Text>
-                  </View>
-                  {activeVehicle.year ? (
-                    <View style={styles.vehicleMetaPillMuted}>
-                      <Text style={styles.vehicleMetaPillMutedText}>{activeVehicle.year}</Text>
-                    </View>
-                  ) : null}
+                <View style={styles.vehicleMetaV3}>
+                  <Text style={styles.vehicleMetaTextV3}>{activeVehicle.plateNumber}</Text>
+                  {activeVehicle.year != null ? <Text style={styles.vehicleMetaTextV3}>• {activeVehicle.year}</Text> : null}
                 </View>
-
-                <View style={styles.vehicleInfoRow}>
-                  <Clock3 size={14} color={colors.textMuted} strokeWidth={2} />
-                  <Text style={styles.vehicleInfoText}>
+                <View style={styles.vehicleServiceRowV3}>
+                  <CalendarDays size={14} color={colors.textMuted} strokeWidth={2} />
+                  <Text style={styles.vehicleServiceTextV3}>
                     Last Service: {activeVehicle.lastServiceDate ? new Date(activeVehicle.lastServiceDate).toLocaleDateString() : 'Not recorded'}
                   </Text>
                 </View>
-                <View style={styles.vehicleInfoRow}> 
+                <View style={styles.vehicleServiceRowV3}>
                   <Clock3 size={14} color={colors.textMuted} strokeWidth={2} />
-                  <Text style={styles.vehicleInfoText}>
+                  <Text style={styles.vehicleServiceTextV3}>
                     Next Service: {nextServiceDate ? nextServiceDate.toLocaleDateString() : 'Schedule soon'}
                   </Text>
                 </View>
               </View>
 
-              <View style={styles.vehicleActions}>
-                <View style={styles.vehicleActionTop}>
+              <View style={styles.vehicleActionColumnV3}>
+                <View style={styles.vehicleActionTopV3}>
                   <Pressable
-                    style={({ pressed }) => [styles.vehicleDetailsButton, pressed && styles.pressed]}
+                    style={({ pressed }) => [styles.vehicleDetailsButtonV3, pressed && styles.pressed]}
                     onPress={() => onNavigateTab?.('profile')}
                   >
-                    <Text style={styles.vehicleDetailsLabel}>View Details</Text>
+                    <Text style={styles.vehicleDetailsTextV3}>View Details</Text>
                   </Pressable>
                 </View>
-                <PremiumButton label="Book Again" compact onPress={() => onNavigateTab?.('services')} style={styles.vehicleBookAgainButton} />
+                <View style={styles.vehicleActionBottomV3}>
+                  <PremiumButton label="Book Again" onPress={() => onNavigateTab?.('services')} style={styles.vehicleBookButtonV3} />
+                </View>
               </View>
             </View>
           ) : (
@@ -1161,120 +1159,102 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSoft,
     borderRadius: radius.sm,
   },
-  vehicleCard: {
+  vehicleCardV3: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
-    padding: 16,
-    minHeight: 130,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    ...shadow.card,
+    padding: 20,
+    height: 132,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
   },
-  vehicleGraphic: {
-    width: 110,
-    alignItems: 'center',
+  vehicleImageSectionV3: {
+    width: 100,
+    height: 100,
+    marginRight: 20,
     justifyContent: 'center',
-  },
-  vehicleGraphicCircle: {
-    width: 110,
-    height: 110,
-    borderRadius: 24,
-    backgroundColor: colors.primarySoft,
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  primaryBadge: {
-    position: 'absolute',
-    top: -4,
-    left: 0,
-    backgroundColor: colors.primaryBright,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: radius.pill,
+  vehicleImageV3: {
+    width: 100,
+    height: 100,
+    borderRadius: 20,
   },
-  primaryBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  vehicleBody: {
+  vehicleContentV3: {
     flex: 1,
     minWidth: 0,
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    height: 100,
   },
-  vehicleTitleRow: {
-    marginBottom: 8,
-  },
-  vehicleTitle: {
+  vehicleNameV3: {
     color: colors.text,
-    fontSize: 16,
+    fontSize: 22,
     fontWeight: '800',
-    lineHeight: 22,
+    lineHeight: 28,
   },
-  vehicleMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 10,
+  vehiclePrimaryBadgeV3: {
+    backgroundColor: colors.primaryBright,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    alignSelf: 'flex-start',
+    marginTop: 4,
   },
-  vehicleMetaPill: {
-    backgroundColor: colors.primarySoft,
-    borderRadius: radius.pill,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  vehicleMetaPillText: {
-    color: colors.primaryBright,
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  vehicleMetaPillMuted: {
-    backgroundColor: colors.surfaceSoft,
-    borderRadius: radius.pill,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  vehicleMetaPillMutedText: {
-    color: colors.textMuted,
+  vehiclePrimaryBadgeTextV3: {
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '700',
   },
-  vehicleInfoRow: {
+  vehicleMetaV3: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 6,
+    gap: 8,
+    marginTop: 8,
   },
-  vehicleInfoText: {
-    flex: 1,
+  vehicleMetaTextV3: {
+    color: colors.textMuted,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  vehicleServiceRowV3: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+  },
+  vehicleServiceTextV3: {
     color: colors.textMuted,
     fontSize: 13,
     fontWeight: '600',
   },
-  vehicleActions: {
-    width: 140,
+  vehicleActionColumnV3: {
+    width: 120,
     justifyContent: 'space-between',
     alignItems: 'flex-end',
-    minHeight: 110,
+    height: 100,
   },
-  vehicleActionTop: {
+  vehicleActionTopV3: {
     alignSelf: 'stretch',
     alignItems: 'flex-end',
   },
-  vehicleDetailsButton: {
+  vehicleDetailsButtonV3: {
     paddingVertical: 4,
     paddingHorizontal: 6,
   },
-  vehicleDetailsLabel: {
+  vehicleDetailsTextV3: {
     color: colors.primaryBright,
     fontSize: 13,
     fontWeight: '700',
   },
-  vehicleBookAgainButton: {
-    width: 140,
+  vehicleActionBottomV3: {
+    width: 120,
+  },
+  vehicleBookButtonV3: {
+    width: 120,
   },
   emptyCard: {
     backgroundColor: colors.surface,
